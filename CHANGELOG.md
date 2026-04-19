@@ -4,6 +4,11 @@ All notable changes to the "vscode-acp" extension will be documented in this fil
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.5] - 2026-04-19
+
+### Added
+- **Hermes Agent**: Added [Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/acp) from Nous Research as a pre-configured agent (`hermes acp`).
+
 ## [0.1.4] - 2026-04-18
 
 ### Added

@@ -4,6 +4,11 @@ All notable changes to the "vscode-acp" extension will be documented in this fil
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.6] - 2026-04-20
+
+### Added
+- **Kiro CLI**: Added [Kiro CLI](https://kiro.dev/docs/cli/acp/) as a pre-configured agent (`kiro-cli acp`).
+
 ## [0.1.5] - 2026-04-19
 
 ### Added

@@ -1,11 +1,11 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import type { ReactElement } from 'react';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
 import { getPersistedState, postToExtension, setPersistedState } from './bridge';
+import { ChatComposer } from './components/ChatComposer';
 import { MessageTimeline } from './components/MessageTimeline';
 import { createInitialState, toPersistedState } from './state';
-import type { WebviewState } from './state';
 import { reduceWebviewState } from './state.logic';
 
 export function App(): ReactElement {
@@ -14,7 +14,6 @@ export function App(): ReactElement {
     undefined,
     () => createInitialState(getPersistedState()),
   );
-  const [prompt, setPrompt] = useState('');
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -30,16 +29,9 @@ export function App(): ReactElement {
     setPersistedState(toPersistedState(state));
   }, [state]);
 
-  const canSend = Boolean(state.session) && prompt.trim().length > 0 && !state.turnInProgress;
-
-  function submitPrompt(): void {
-    const text = prompt.trim();
-    if (!canSend) {
-      return;
-    }
+  function submitPrompt(text: string): void {
     dispatch({ type: 'promptSubmitted', text });
     postToExtension({ type: 'sendPrompt', text });
-    setPrompt('');
   }
 
   function cancelTurn(): void {
@@ -84,38 +76,13 @@ export function App(): ReactElement {
         </div>
       ) : null}
 
-      <footer className="composer-shell">
-        <textarea
-          aria-label="Prompt"
-          placeholder={composerPlaceholder(state)}
-          value={prompt}
-          disabled={!state.session}
-          onChange={(event) => setPrompt(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submitPrompt();
-            }
-          }}
-        />
-        <button
-          type="button"
-          disabled={state.turnInProgress ? false : !canSend}
-          onClick={state.turnInProgress ? cancelTurn : submitPrompt}
-        >
-          {state.turnInProgress ? 'Cancel' : 'Send'}
-        </button>
-      </footer>
+      <ChatComposer
+        hasSession={Boolean(state.session)}
+        turnInProgress={state.turnInProgress}
+        availableCommands={state.availableCommands}
+        onSubmit={submitPrompt}
+        onCancel={cancelTurn}
+      />
     </main>
   );
-}
-
-function composerPlaceholder(state: WebviewState): string {
-  if (!state.session) {
-    return 'Connect to an agent';
-  }
-  if (state.availableCommands.length > 0) {
-    return 'Ask the agent or type / for commands';
-  }
-  return 'Ask the agent';
 }

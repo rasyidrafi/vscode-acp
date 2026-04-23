@@ -317,12 +317,20 @@ textarea {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+  align-items: end;
   padding: 10px 12px 12px;
   border-top: 1px solid var(--vscode-panel-border);
   background: var(--vscode-sideBar-background);
 }
 
+.composer-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
 .composer-shell textarea {
+  display: block;
+  width: 100%;
   min-width: 0;
   min-height: 38px;
   max-height: 120px;
@@ -347,4 +355,61 @@ textarea {
 .composer-shell button:disabled,
 .composer-shell textarea:disabled {
   opacity: 0.55;
+}
+
+.command-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 24%);
+}
+
+.command-menu-header {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.86em;
+}
+
+.command-menu-item {
+  display: grid;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 0;
+  color: var(--vscode-foreground);
+  background: transparent;
+  text-align: left;
+}
+
+.command-menu-item:hover,
+.command-menu-item.active {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.command-menu-name,
+.command-menu-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-menu-name {
+  font-family: var(--vscode-editor-font-family);
+}
+
+.command-menu-description {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
 }

@@ -1,6 +1,6 @@
 import type { AvailableCommand, SessionModeState, SessionModelState } from '@agentclientprotocol/sdk';
 
-import type { BridgeSessionState } from '../src/shared/bridge';
+import type { AttachedFile, BridgeSessionState } from '../src/shared/bridge';
 import type { ChatItem } from '../src/shared/chatModel';
 
 export interface WebviewState {
@@ -10,6 +10,7 @@ export interface WebviewState {
   error: string | null;
   items: ChatItem[];
   availableCommands: AvailableCommand[];
+  attachedFiles: AttachedFile[];
   modes: SessionModeState | null;
   models: SessionModelState | null;
   currentAssistantMessageId: string | null;
@@ -25,6 +26,7 @@ export type PersistedWebviewState = Pick<
   | 'error'
   | 'items'
   | 'availableCommands'
+  | 'attachedFiles'
   | 'modes'
   | 'models'
   | 'currentAssistantMessageId'
@@ -40,6 +42,7 @@ export function createInitialState(persisted?: PersistedWebviewState): WebviewSt
     error: persisted?.error ?? null,
     items: persisted?.items ?? [],
     availableCommands: persisted?.availableCommands ?? [],
+    attachedFiles: persisted?.attachedFiles ?? [],
     modes: persisted?.modes ?? null,
     models: persisted?.models ?? null,
     currentAssistantMessageId: persisted?.currentAssistantMessageId ?? null,
@@ -56,6 +59,7 @@ export function toPersistedState(state: WebviewState): PersistedWebviewState {
     error: state.error,
     items: state.items,
     availableCommands: state.availableCommands,
+    attachedFiles: state.attachedFiles,
     modes: state.modes,
     models: state.models,
     currentAssistantMessageId: state.currentAssistantMessageId,
@@ -76,6 +80,7 @@ export function isPersistedWebviewState(value: unknown): value is PersistedWebvi
     (value.error === null || typeof value.error === 'string') &&
     Array.isArray(value.items) &&
     Array.isArray(value.availableCommands) &&
+    (value.attachedFiles === undefined || Array.isArray(value.attachedFiles)) &&
     (value.modes === null || isRecord(value.modes)) &&
     (value.models === null || isRecord(value.models)) &&
     (value.currentAssistantMessageId === null || typeof value.currentAssistantMessageId === 'string') &&

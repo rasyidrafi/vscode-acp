@@ -26,6 +26,16 @@ describe('ChatComposer logic', () => {
     })).toMatchObject({ canSend: false, placeholder: 'Connect to an agent' });
   });
 
+  it('allows sending with attachments even when prompt is empty', () => {
+    expect(getComposerSendState({
+      hasSession: true,
+      prompt: '',
+      turnInProgress: false,
+      availableCommandCount: 0,
+      attachmentCount: 1,
+    })).toMatchObject({ canSend: true, isCancel: false });
+  });
+
   it('turns the send button into cancel while a turn is active', () => {
     expect(getComposerSendState({
       hasSession: true,

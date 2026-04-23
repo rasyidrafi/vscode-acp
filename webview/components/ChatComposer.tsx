@@ -2,6 +2,7 @@ import type { AvailableCommand } from '@agentclientprotocol/sdk';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
 
+import type { AttachedFile } from '../../src/shared/bridge';
 import { searchCommands } from '../lib/commandSearch';
 import { ComposerCommandMenu } from './ComposerCommandMenu';
 import {
@@ -16,16 +17,22 @@ interface ChatComposerProps {
   hasSession: boolean;
   turnInProgress: boolean;
   availableCommands: AvailableCommand[];
+  attachedFiles: AttachedFile[];
   onSubmit: (text: string) => void;
   onCancel: () => void;
+  onAttachFile: () => void;
+  onRemoveAttachment: (path: string) => void;
 }
 
 export function ChatComposer({
   hasSession,
   turnInProgress,
   availableCommands,
+  attachedFiles,
   onSubmit,
   onCancel,
+  onAttachFile,
+  onRemoveAttachment,
 }: ChatComposerProps): ReactElement {
   const [prompt, setPrompt] = useState('');
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
@@ -45,6 +52,7 @@ export function ChatComposer({
     prompt,
     turnInProgress,
     availableCommandCount: availableCommands.length,
+    attachmentCount: attachedFiles.length,
     commandInputHint: commandHint,
   });
 
@@ -54,6 +62,13 @@ export function ChatComposer({
   }, [slashQuery]);
 
   useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 170)}px`;
+    }
+  }, [prompt]);
+
+  useEffect(() => {
     if (!prompt.startsWith('/')) {
       setCommandHint(null);
     }
@@ -61,10 +76,10 @@ export function ChatComposer({
 
   function submitPrompt(text = prompt): void {
     const trimmed = text.trim();
-    if (!hasSession || turnInProgress || !trimmed) {
+    if (!hasSession || turnInProgress || (!trimmed && attachedFiles.length === 0)) {
       return;
     }
-    onSubmit(trimmed);
+    onSubmit(trimmed || 'Please use the attached files as context.');
     setPrompt('');
     setCommandHint(null);
   }
@@ -120,30 +135,77 @@ export function ChatComposer({
 
   return (
     <footer className="composer-shell">
-      <div className="composer-input-wrap">
+      <div className="composer-card">
         <ComposerCommandMenu
           commands={menuOpen ? commandResults : []}
           activeIndex={activeCommandIndex}
           onHover={setActiveCommandIndex}
           onSelect={selectCommand}
         />
+        {attachedFiles.length > 0 ? (
+          <div className="attachment-strip" aria-label="Attached files">
+            {attachedFiles.map((file) => (
+              <span key={file.path} className="attachment-chip" title={file.path}>
+                <span className="attachment-name">{file.name}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => onRemoveAttachment(file.path)}
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <textarea
           ref={textareaRef}
+          data-chat-input="true"
           aria-label="Prompt"
           placeholder={sendState.placeholder}
           value={prompt}
           disabled={!hasSession}
           onChange={(event) => setPrompt(event.currentTarget.value)}
           onKeyDown={handleKeyDown}
+          rows={1}
         />
+        <div className="composer-footer" data-chat-input-footer="true">
+          <div className="composer-tools">
+            <button
+              type="button"
+              className="composer-tool-button composer-icon-button"
+              disabled={!hasSession || turnInProgress}
+              aria-label="Attach file"
+              title="Attach file"
+              onClick={onAttachFile}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+            {availableCommands.length > 0 ? <span className="composer-hint">/ commands</span> : null}
+          </div>
+          <button
+            type="button"
+            className={sendState.isCancel ? 'composer-send-button cancel' : 'composer-send-button'}
+            disabled={!sendState.canSend}
+            onClick={sendState.isCancel ? onCancel : () => submitPrompt()}
+            aria-label={sendState.isCancel ? 'Stop response' : 'Send prompt'}
+            title={sendState.isCancel ? 'Stop' : 'Send'}
+          >
+            {sendState.isCancel ? (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 12V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M4.8 6.1L8 2.9l3.2 3.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
-      <button
-        type="button"
-        disabled={!sendState.canSend}
-        onClick={sendState.isCancel ? onCancel : () => submitPrompt()}
-      >
-        {sendState.buttonLabel}
-      </button>
     </footer>
   );
 }

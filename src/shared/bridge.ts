@@ -15,6 +15,11 @@ export interface BridgeSessionState {
   availableCommands: AvailableCommand[];
 }
 
+export interface AttachedFile {
+  path: string;
+  name: string;
+}
+
 export type WebviewToExtensionMessage =
   | { type: 'ready' }
   | { type: 'sendPrompt'; text: string }
@@ -43,6 +48,7 @@ export type ExtensionToWebviewMessage =
     }
   | { type: 'error'; message: string }
   | { type: 'clearChat' }
+  | { type: 'fileAttached'; file: AttachedFile }
   | { type: 'modesUpdate'; modes: SessionModeState | null }
   | { type: 'modelsUpdate'; models: SessionModelState | null };
 

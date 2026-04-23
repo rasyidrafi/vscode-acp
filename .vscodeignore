@@ -3,6 +3,8 @@
 src/**
 out/**
 node_modules/**
+temp/**
+*.vsix
 .gitignore
 .gitattributes
 *.map

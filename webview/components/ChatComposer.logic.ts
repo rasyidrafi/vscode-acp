@@ -12,6 +12,7 @@ export function getComposerSendState(options: {
   prompt: string;
   turnInProgress: boolean;
   availableCommandCount: number;
+  attachmentCount?: number;
   commandInputHint?: string | null;
 }): ComposerSendState {
   if (options.turnInProgress) {
@@ -24,7 +25,7 @@ export function getComposerSendState(options: {
   }
 
   return {
-    canSend: options.hasSession && options.prompt.trim().length > 0,
+    canSend: options.hasSession && (options.prompt.trim().length > 0 || Boolean(options.attachmentCount)),
     isCancel: false,
     buttonLabel: 'Send',
     placeholder: composerPlaceholder(

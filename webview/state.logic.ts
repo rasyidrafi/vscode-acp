@@ -7,6 +7,8 @@ import { createInitialState, type WebviewState } from './state';
 export type WebviewAction =
   | { type: 'extensionMessage'; message: ExtensionToWebviewMessage }
   | { type: 'promptSubmitted'; text: string }
+  | { type: 'attachmentsConsumed' }
+  | { type: 'removeAttachment'; path: string }
   | { type: 'clearError' };
 
 export function reduceWebviewState(state: WebviewState, action: WebviewAction): WebviewState {
@@ -15,6 +17,13 @@ export function reduceWebviewState(state: WebviewState, action: WebviewAction): 
       return reduceExtensionMessage(state, action.message);
     case 'promptSubmitted':
       return addUserPrompt(state, action.text);
+    case 'attachmentsConsumed':
+      return { ...state, attachedFiles: [] };
+    case 'removeAttachment':
+      return {
+        ...state,
+        attachedFiles: state.attachedFiles.filter((file) => file.path !== action.path),
+      };
     case 'clearError':
       return { ...state, error: null };
     default:
@@ -72,6 +81,13 @@ function reduceExtensionMessage(
         ...emptyTimelineState(),
         error: null,
         turnInProgress: false,
+        attachedFiles: [],
+      };
+    case 'fileAttached':
+      return {
+        ...state,
+        attachedFiles: upsertAttachedFile(state.attachedFiles, message.file),
+        error: null,
       };
     case 'modesUpdate':
       return {
@@ -88,6 +104,16 @@ function reduceExtensionMessage(
     default:
       return state;
   }
+}
+
+function upsertAttachedFile(
+  files: WebviewState['attachedFiles'],
+  file: WebviewState['attachedFiles'][number],
+): WebviewState['attachedFiles'] {
+  return [
+    ...files.filter((current) => current.path !== file.path),
+    file,
+  ];
 }
 
 function applySessionUpdate(state: WebviewState, update: unknown): WebviewState {

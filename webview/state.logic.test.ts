@@ -158,6 +158,26 @@ describe('webview state reducer', () => {
     expect((mode.session?.modes as { currentModeId: string } | null)?.currentModeId).toBe('plan');
   });
 
+  it('tracks attached files and clears them after use', () => {
+    const attached = reduceWebviewState(withSession(), extensionMessage({
+      type: 'fileAttached',
+      file: { path: '/workspace/src/app.ts', name: 'app.ts' },
+    }));
+    const duplicate = reduceWebviewState(attached, extensionMessage({
+      type: 'fileAttached',
+      file: { path: '/workspace/src/app.ts', name: 'app.ts' },
+    }));
+    const removed = reduceWebviewState(duplicate, {
+      type: 'removeAttachment',
+      path: '/workspace/src/app.ts',
+    });
+    const consumed = reduceWebviewState(attached, { type: 'attachmentsConsumed' });
+
+    expect(duplicate.attachedFiles).toEqual([{ path: '/workspace/src/app.ts', name: 'app.ts' }]);
+    expect(removed.attachedFiles).toHaveLength(0);
+    expect(consumed.attachedFiles).toHaveLength(0);
+  });
+
   it('ignores updates for inactive sessions', () => {
     const state = reduceWebviewState(withSession(), extensionMessage({
       type: 'sessionUpdate',

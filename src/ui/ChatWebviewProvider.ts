@@ -156,6 +156,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
     // Tell webview we're processing
     this.postMessage({ type: 'promptStart' });
+    await vscode.commands.executeCommand('setContext', 'acp.turnInProgress', true);
 
     try {
       const response = await this.sessionManager.sendPrompt(activeId, text);
@@ -171,6 +172,8 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
         message: e.message || 'Prompt failed',
       });
       this.postMessage({ type: 'promptEnd', stopReason: 'error' });
+    } finally {
+      await vscode.commands.executeCommand('setContext', 'acp.turnInProgress', false);
     }
   }
 
@@ -270,6 +273,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    */
   clearChat(): void {
     this._hasChatContent = false;
+    void vscode.commands.executeCommand('setContext', 'acp.turnInProgress', false);
     this.postMessage({ type: 'clearChat' });
   }
 
@@ -286,8 +290,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   attachFile(uri: vscode.Uri): void {
     if (this.view) {
       this.postMessage({
-        type: 'error',
-        message: `File attachments are not supported yet: ${uri.fsPath}`,
+        type: 'fileAttached',
+        file: {
+          path: uri.fsPath,
+          name: uri.fsPath.split(/[\\/]/).pop() || uri.fsPath,
+        },
       });
       this.view.show?.(true);
     }

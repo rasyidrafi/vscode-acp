@@ -6,7 +6,6 @@ import { logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../shared/bridge';
 import { isWebviewToExtensionMessage } from '../shared/bridge';
-import { getLegacyChatWebviewHtml } from './legacyWebviewHtml';
 import { getChatWebviewHtml } from './webviewHtml';
 
 /**
@@ -58,13 +57,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this.shouldUseReactWebview()
-      ? getChatWebviewHtml({
-          webview: webviewView.webview,
-          extensionUri: this.extensionUri,
-          devServerUrl: process.env.ACP_WEBVIEW_DEV_SERVER,
-        })
-      : getLegacyChatWebviewHtml(webviewView.webview);
+    webviewView.webview.html = getChatWebviewHtml({
+      webview: webviewView.webview,
+      extensionUri: this.extensionUri,
+      devServerUrl: process.env.ACP_WEBVIEW_DEV_SERVER,
+    });
 
     // Handle messages from the webview
     webviewView.webview.onDidReceiveMessage(async (message: unknown) => {
@@ -246,10 +243,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     this.view?.webview.postMessage(message);
   }
 
-  private shouldUseReactWebview(): boolean {
-    return process.env.ACP_WEBVIEW_REACT === '1';
-  }
-
   /**
    * Notify webview of a new active session.
    */
@@ -292,10 +285,9 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    */
   attachFile(uri: vscode.Uri): void {
     if (this.view) {
-      this.view.webview.postMessage({
-        type: 'file-attached',
-        path: uri.fsPath,
-        name: uri.fsPath.split(/[\\/]/).pop() || uri.fsPath,
+      this.postMessage({
+        type: 'error',
+        message: `File attachments are not supported yet: ${uri.fsPath}`,
       });
       this.view.show?.(true);
     }

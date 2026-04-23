@@ -5,6 +5,7 @@ import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
 import { getPersistedState, postToExtension, setPersistedState } from './bridge';
 import { ChatComposer } from './components/ChatComposer';
 import { MessageTimeline } from './components/MessageTimeline';
+import { SessionBanner } from './components/SessionBanner';
 import { createInitialState, toPersistedState } from './state';
 import { reduceWebviewState } from './state.logic';
 
@@ -40,13 +41,13 @@ export function App(): ReactElement {
 
   return (
     <main className="app-shell">
-      <section className="session-strip" aria-live="polite">
-        <span className={state.session ? 'status-dot connected' : 'status-dot'} />
-        <div className="session-copy">
-          <strong>{state.session?.agentName ?? 'No active agent'}</strong>
-          <span>{state.session?.cwd ?? 'Connect to an agent to start chatting.'}</span>
-        </div>
-      </section>
+      <SessionBanner
+        session={state.session}
+        modes={state.modes}
+        models={state.models}
+        onModeChange={(modeId) => postToExtension({ type: 'setMode', modeId })}
+        onModelChange={(modelId) => postToExtension({ type: 'setModel', modelId })}
+      />
 
       <section className="timeline-shell">
         {state.items.length === 0 ? (

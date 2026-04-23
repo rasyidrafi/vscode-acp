@@ -29,13 +29,19 @@ textarea {
 }
 
 .session-strip {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 8px;
   min-width: 0;
   padding: 10px 12px;
   border-bottom: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editorWidget-background);
+}
+
+.session-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .status-dot {
@@ -66,6 +72,40 @@ textarea {
 .session-copy span {
   color: var(--vscode-descriptionForeground);
   font-size: 0.9em;
+}
+
+.session-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-select {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.session-select span {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.82em;
+}
+
+.session-select select {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border));
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 6px;
+}
+
+.session-select select:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
 }
 
 .timeline-shell {

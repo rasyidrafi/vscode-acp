@@ -95,6 +95,28 @@ describe('webview state reducer', () => {
     });
   });
 
+  it('normalizes tool call detail from ACP content arrays', () => {
+    const state = reduceWebviewState(withSession(), sessionUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'write-1',
+      title: 'Write file',
+      status: 'failed',
+      content: [
+        { type: 'text', text: 'top-level text' },
+        { type: 'content', content: { type: 'text', text: 'nested text' } },
+        { type: 'content', content: { type: 'image', data: 'ignored' } },
+      ],
+    }));
+
+    expect(state.items[0]).toMatchObject({
+      kind: 'toolCall',
+      id: 'tool-write-1',
+      title: 'Write file',
+      status: 'failed',
+      detail: 'top-level text\nnested text',
+    });
+  });
+
   it('replaces the current plan with normalized entries', () => {
     const first = reduceWebviewState(withSession(), sessionUpdate({
       sessionUpdate: 'plan',
@@ -147,6 +169,21 @@ describe('webview state reducer', () => {
     }));
 
     expect(state.items).toHaveLength(0);
+  });
+
+  it('ignores malformed or unsupported ACP updates', () => {
+    const base = withSession();
+    const malformed = reduceWebviewState(base, sessionUpdate({ content: { type: 'text', text: 'no kind' } }));
+    const unsupported = reduceWebviewState(malformed, sessionUpdate({
+      sessionUpdate: 'unknown_update',
+      content: { type: 'text', text: 'ignore me' },
+    }));
+    const invalidMode = reduceWebviewState(unsupported, sessionUpdate({
+      sessionUpdate: 'current_mode_update',
+      currentModeId: 123,
+    }));
+
+    expect(invalidMode).toBe(base);
   });
 
   it('restores persisted state and clears the timeline when the active session changes', () => {

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import type { ChatItem, TimelineRow } from '../../src/shared/chatModel';
+import { sanitizeMarkdownUrl } from '../lib/markdownLinks';
 import { deriveTimelineRows } from './MessageTimeline.logic';
 
 interface MessageTimelineProps {
@@ -93,7 +94,7 @@ function MessageRow({ item }: { item: Extract<ChatItem, { kind: 'message' }> }):
     <article className={`chat-row message-row ${item.role}`}>
       <div className="message-content">
         {item.role === 'assistant' ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{item.text}</ReactMarkdown>
         ) : (
           <p>{item.text}</p>
         )}

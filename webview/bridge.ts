@@ -1,4 +1,5 @@
 import type { WebviewToExtensionMessage } from '../src/shared/bridge';
+import { isPersistedWebviewState, type PersistedWebviewState } from './state';
 
 interface VsCodeApi {
   postMessage(message: WebviewToExtensionMessage): void;
@@ -20,4 +21,13 @@ const vscode = typeof acquireVsCodeApi === 'function'
 
 export function postToExtension(message: WebviewToExtensionMessage): void {
   vscode.postMessage(message);
+}
+
+export function getPersistedState(): PersistedWebviewState | undefined {
+  const value = vscode.getState<unknown>();
+  return isPersistedWebviewState(value) ? value : undefined;
+}
+
+export function setPersistedState(state: PersistedWebviewState): void {
+  vscode.setState(state);
 }

@@ -352,6 +352,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src --max-warnings 0",
+    "test:unit": "vitest run",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "test": "vscode-test"
   },

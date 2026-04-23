@@ -5,6 +5,7 @@ import { SessionUpdateHandler, SessionUpdateListener } from '../handlers/Session
 import type { SessionNotification } from '@agentclientprotocol/sdk';
 import { logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
+import { getChatWebviewHtml } from './webviewHtml';
 
 /**
  * WebviewViewProvider for the ACP chat sidebar.
@@ -66,7 +67,13 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this.getHtmlContent(webviewView.webview);
+    webviewView.webview.html = this.shouldUseReactWebview()
+      ? getChatWebviewHtml({
+          webview: webviewView.webview,
+          extensionUri: this.extensionUri,
+          devServerUrl: process.env.ACP_WEBVIEW_DEV_SERVER,
+        })
+      : this.getHtmlContent(webviewView.webview);
 
     // Handle messages from the webview
     webviewView.webview.onDidReceiveMessage(async (message) => {
@@ -243,6 +250,10 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    */
   private postMessage(message: any): void {
     this.view?.webview.postMessage(message);
+  }
+
+  private shouldUseReactWebview(): boolean {
+    return process.env.ACP_WEBVIEW_REACT === '1';
   }
 
   /**

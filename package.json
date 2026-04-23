@@ -339,9 +339,16 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "webpack",
+    "compile:webview": "vite build --mode development",
+    "watch": "npm run watch:extension",
+    "watch:extension": "webpack --watch",
+    "watch:webview": "vite --host 127.0.0.1",
+    "package": "npm run package:extension && npm run package:webview",
+    "package:extension": "webpack --mode production --devtool hidden-source-map",
+    "package:webview": "vite build",
+    "typecheck": "tsc -p . --noEmit && tsc -p webview/tsconfig.json",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src --max-warnings 0",
@@ -351,9 +358,16 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
     "@vscode/extension-telemetry": "^1.5.0",
-    "marked": "^15.0.0"
+    "marked": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.0.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
@@ -366,6 +380,8 @@
     "ts-loader": "^9.5.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0",
     "webpack": "^5.95.0",
     "webpack-cli": "^5.1.0"
   }

@@ -1,0 +1,134 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  height: 100%;
+  min-width: 0;
+}
+
+.session-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editorWidget-background);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground);
+}
+
+.status-dot.connected {
+  background: var(--vscode-testing-iconPassed);
+}
+
+.session-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.session-copy strong,
+.session-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-copy span {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+
+.timeline-shell {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 100%;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--vscode-foreground);
+}
+
+.error-banner {
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: 6px;
+  color: var(--vscode-inputValidation-errorForeground);
+  background: var(--vscode-inputValidation-errorBackground);
+}
+
+.composer-shell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-sideBar-background);
+}
+
+.composer-shell textarea {
+  min-width: 0;
+  min-height: 38px;
+  max-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  padding: 8px;
+}
+
+.composer-shell button {
+  min-width: 54px;
+  height: 38px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 6px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  padding: 0 10px;
+}
+
+.composer-shell button:disabled,
+.composer-shell textarea:disabled {
+  opacity: 0.55;
+}

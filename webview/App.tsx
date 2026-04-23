@@ -1,11 +1,9 @@
 import { useEffect, useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
-import type { ChatItem } from '../src/shared/chatModel';
 import { getPersistedState, postToExtension, setPersistedState } from './bridge';
+import { MessageTimeline } from './components/MessageTimeline';
 import { createInitialState, toPersistedState } from './state';
 import type { WebviewState } from './state';
 import { reduceWebviewState } from './state.logic';
@@ -66,11 +64,7 @@ export function App(): ReactElement {
             {state.availableCommands.length > 0 ? <small>{state.availableCommands.length} commands available</small> : null}
           </div>
         ) : (
-          <div className="timeline-list">
-            {state.items.map((item) => (
-              <ChatItemRow key={item.id} item={item} />
-            ))}
-          </div>
+          <MessageTimeline items={state.items} turnInProgress={state.turnInProgress} />
         )}
       </section>
 
@@ -114,58 +108,6 @@ export function App(): ReactElement {
       </footer>
     </main>
   );
-}
-
-function ChatItemRow({ item }: { item: ChatItem }): ReactElement {
-  switch (item.kind) {
-    case 'message':
-      return (
-        <article className={`chat-row message-row ${item.role}`}>
-          {item.role === 'assistant' ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown>
-          ) : (
-            <p>{item.text}</p>
-          )}
-          {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
-        </article>
-      );
-    case 'thought':
-      return (
-        <details className="chat-row thought-row" open={!item.collapsed}>
-          <summary>{item.streaming ? 'Thinking...' : 'Thought'}</summary>
-          <p>{item.text}</p>
-        </details>
-      );
-    case 'toolCall':
-      return (
-        <article className={`chat-row tool-row ${item.status}`}>
-          <strong>{item.title}</strong>
-          <span>{item.status}</span>
-          {item.detail ? <p>{item.detail}</p> : null}
-        </article>
-      );
-    case 'plan':
-      return (
-        <article className="chat-row plan-row">
-          <strong>Plan</strong>
-          <ul>
-            {item.entries.map((entry) => (
-              <li key={entry.id} className={entry.completed ? 'completed' : undefined}>
-                {entry.text}
-              </li>
-            ))}
-          </ul>
-        </article>
-      );
-    case 'error':
-      return (
-        <article className="chat-row inline-error-row">
-          {item.text}
-        </article>
-      );
-    default:
-      return <></>;
-  }
 }
 
 function composerPlaceholder(state: WebviewState): string {

@@ -186,13 +186,13 @@ button:disabled {
 }
 
 .session-select.mode .select-menu {
-  width: min(280px, calc(100vw - 16px));
-  max-width: min(280px, calc(100vw - 16px));
+  width: min(220px, calc(100vw - 16px));
+  max-width: min(220px, calc(100vw - 16px));
 }
 
 .session-select.model .select-menu {
-  width: min(340px, calc(100vw - 16px));
-  max-width: min(340px, calc(100vw - 16px));
+  width: min(260px, calc(100vw - 16px));
+  max-width: min(260px, calc(100vw - 16px));
 }
 
 .select-menu.up {
@@ -1322,9 +1322,9 @@ body.vscode-dark .message-copy-tooltip {
   .select-menu {
     left: 0;
     right: auto;
-    width: min(300px, calc(100vw - 16px));
+    width: min(260px, calc(100vw - 16px));
     min-width: 0;
-    max-width: min(300px, calc(100vw - 16px));
+    max-width: min(260px, calc(100vw - 16px));
   }
 
   .timeline-scroll {

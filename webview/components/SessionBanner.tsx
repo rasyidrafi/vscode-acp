@@ -1,4 +1,4 @@
-import { ChevronDown, Lock, Unlock, Pencil } from 'lucide-react';
+import { ChevronDown, ListChecks, Lock, Unlock, Pencil } from 'lucide-react';
 import type { SessionModeState, SessionModelState } from '@agentclientprotocol/sdk';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
@@ -246,7 +246,7 @@ function getModeOptionIcon(label: string, id: string): (() => ReactElement) | nu
     return UnlockIcon;
   }
   if (key.includes('plan')) {
-    return null;
+    return PlanIcon;
   }
   return LockIcon;
 }
@@ -261,4 +261,8 @@ function UnlockIcon(): ReactElement {
 
 function PencilIcon(): ReactElement {
   return <Pencil size={14} />;
+}
+
+function PlanIcon(): ReactElement {
+  return <ListChecks size={14} />;
 }

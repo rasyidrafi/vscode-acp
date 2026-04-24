@@ -4,6 +4,7 @@ import { TelemetryReporter } from '@vscode/extension-telemetry';
 const CONNECTION_STRING = 'InstrumentationKey=c4d676c8-3b21-4047-8f57-804f20ccb62d';
 
 let reporter: TelemetryReporter | undefined;
+let telemetryState: 'enabled' | 'disabled' | 'degraded' = 'disabled';
 
 /** Common properties attached to every telemetry event. */
 function getCommonProperties(): Record<string, string> {
@@ -19,12 +20,32 @@ function getCommonProperties(): Record<string, string> {
  * `activate()`.  Returns the reporter so it can be pushed into
  * `context.subscriptions` for automatic disposal.
  */
-export function initTelemetry(): TelemetryReporter {
+export function initTelemetry(): TelemetryReporter | undefined {
   if (reporter) {
     return reporter;
   }
-  reporter = new TelemetryReporter(CONNECTION_STRING);
-  return reporter;
+
+  if (!vscode.env.isTelemetryEnabled) {
+    telemetryState = 'disabled';
+    return undefined;
+  }
+
+  try {
+    reporter = new TelemetryReporter(CONNECTION_STRING);
+    telemetryState = 'enabled';
+    return reporter;
+  } catch {
+    telemetryState = 'degraded';
+    reporter = undefined;
+    return undefined;
+  }
+}
+
+export function getTelemetryState(): 'enabled' | 'disabled' | 'degraded' {
+  if (reporter) {
+    return 'enabled';
+  }
+  return telemetryState;
 }
 
 /**
@@ -61,4 +82,9 @@ export function sendException(error: Error, properties?: Record<string, string>)
     errorName: error.name,
     errorMessage: error.message,
   });
+}
+
+export function resetTelemetryForTests(): void {
+  reporter = undefined;
+  telemetryState = 'disabled';
 }

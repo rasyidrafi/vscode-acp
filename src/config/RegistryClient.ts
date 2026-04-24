@@ -1,6 +1,6 @@
 import { log, logError } from '../utils/Logger';
 
-interface RegistryAgent {
+export interface RegistryAgent {
   name: string;
   description?: string;
   command: string;
@@ -10,6 +10,13 @@ interface RegistryAgent {
 
 interface Registry {
   agents: RegistryAgent[];
+}
+
+export interface RegistryFetchResult {
+  agents: RegistryAgent[];
+  source: 'network' | 'cache' | 'none';
+  status: 'fresh' | 'stale' | 'failure';
+  errorMessage?: string;
 }
 
 const REGISTRY_URL = 'https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json';
@@ -22,10 +29,14 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
  * Fetches the ACP agent registry from the CDN.
  * Results are cached for 5 minutes.
  */
-export async function fetchRegistry(): Promise<RegistryAgent[]> {
+export async function fetchRegistry(): Promise<RegistryFetchResult> {
   const now = Date.now();
   if (cachedRegistry && (now - cacheTime) < CACHE_TTL) {
-    return cachedRegistry.agents;
+    return {
+      agents: cachedRegistry.agents,
+      source: 'cache',
+      status: 'fresh',
+    };
   }
 
   try {
@@ -38,10 +49,29 @@ export async function fetchRegistry(): Promise<RegistryAgent[]> {
     cachedRegistry = data;
     cacheTime = now;
     log(`Registry fetched: ${data.agents?.length || 0} agents`);
-    return data.agents || [];
+    return {
+      agents: data.agents || [],
+      source: 'network',
+      status: 'fresh',
+    };
   } catch (e) {
     logError('Failed to fetch registry', e);
-    return cachedRegistry?.agents || [];
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    if (cachedRegistry) {
+      return {
+        agents: cachedRegistry.agents,
+        source: 'cache',
+        status: 'stale',
+        errorMessage,
+      };
+    }
+
+    return {
+      agents: [],
+      source: 'none',
+      status: 'failure',
+      errorMessage,
+    };
   }
 }
 

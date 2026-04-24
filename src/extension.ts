@@ -16,7 +16,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // --- Telemetry ---
   const telemetryReporter = initTelemetry();
-  context.subscriptions.push(telemetryReporter);
+  if (telemetryReporter) {
+    context.subscriptions.push(telemetryReporter);
+  }
 
   // --- Core services ---
   const sessionUpdateHandler = new SessionUpdateHandler();

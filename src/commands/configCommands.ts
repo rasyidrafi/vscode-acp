@@ -89,16 +89,26 @@ function registerBrowseRegistryCommand(): vscode.Disposable {
   return registerCommand('acp.browseRegistry', async () => {
     sendEvent('registry/browse');
     try {
-      const agents = await fetchRegistry();
-      const items = agents.map((agent) => ({
+      const result = await fetchRegistry();
+      const items = result.agents.map((agent) => ({
         label: agent.name,
         description: agent.command,
         detail: agent.description || '',
       }));
 
       if (items.length === 0) {
+        if (result.status === 'failure') {
+          vscode.window.showErrorMessage(`Failed to fetch registry: ${result.errorMessage || 'Unknown error'}`);
+          return;
+        }
         vscode.window.showInformationMessage('No agents found in registry.');
         return;
+      }
+
+      if (result.status === 'stale') {
+        void vscode.window.showWarningMessage(
+          `Showing cached registry data because refresh failed: ${result.errorMessage || 'Unknown error'}`,
+        );
       }
 
       await vscode.window.showQuickPick(items, {

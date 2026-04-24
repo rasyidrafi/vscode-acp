@@ -14,6 +14,7 @@ import type {
 } from '../../src/shared/chatModel';
 import { sanitizeMarkdownUrl } from '../lib/markdownLinks';
 import { deriveTimelineRows } from './MessageTimeline.logic';
+import { ToolCallContent } from './tools/ToolCallContent';
 
 interface MessageTimelineProps {
   messages: ConversationMessage[];
@@ -304,31 +305,11 @@ function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
       {isOpen && (
         <div className="tool-scroll-container">
           <div className="tool-row-content">
-            {item.input ? (
-              <ToolSection label="Input">
-                <pre>{item.input}</pre>
-              </ToolSection>
-            ) : null}
-            {item.output ? (
-              <ToolSection label="Output">
-                <pre>{item.output}</pre>
-              </ToolSection>
-            ) : item.detail ? (
-              <div className="thought-content" style={{ padding: '0 0 8px 0' }}>{item.detail}</div>
-            ) : null}
+            <ToolCallContent item={item} />
           </div>
         </div>
       )}
     </article>
-  );
-}
-
-function ToolSection({ label, children }: { label: string; children: ReactElement }): ReactElement {
-  return (
-    <div className="tool-section">
-      <div className="tool-section-label">{label}</div>
-      <div className="tool-section-body">{children}</div>
-    </div>
   );
 }
 

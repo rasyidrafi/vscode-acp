@@ -858,6 +858,15 @@ body.vscode-dark .message-copy-tooltip {
   color: color-mix(in srgb, var(--acp-muted) 70%, transparent);
 }
 
+.tool-search-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .tool-search-files {
   display: flex;
   flex-direction: column;

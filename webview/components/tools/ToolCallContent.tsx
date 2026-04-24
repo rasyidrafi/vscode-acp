@@ -74,33 +74,37 @@ function SearchToolContent(
         </div>
       ) : null}
 
-      {result.files.length > 0 ? (
-        <div className="tool-search-files">
-          {result.files.map((file) => (
-            <button
-              key={file}
-              type="button"
-              className="tool-search-file"
-              title="Click to copy file path"
-              onClick={() => {
-                void navigator.clipboard?.writeText(file);
-              }}
-            >
-              {file}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {result.matches.length > 0 ? (
-        <div className="tool-search-matches">
-          {result.matches.map((match, index) => (
-            <div key={`${match.file}-${match.line ?? 0}-${index}`} className="tool-search-match">
-              <span className="tool-search-match-file">{match.file}</span>
-              {typeof match.line === 'number' ? <span className="tool-search-match-line">:{match.line}</span> : null}
-              <span className="tool-search-match-text">{match.text}</span>
+      {hasStructuredMatches ? (
+        <div className="tool-search-results-container">
+          {result.files.length > 0 ? (
+            <div className="tool-search-files">
+              {result.files.map((file) => (
+                <button
+                  key={file}
+                  type="button"
+                  className="tool-search-file"
+                  title="Click to copy file path"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(file);
+                  }}
+                >
+                  {file}
+                </button>
+              ))}
             </div>
-          ))}
+          ) : null}
+
+          {result.matches.length > 0 ? (
+            <div className="tool-search-matches">
+              {result.matches.map((match, index) => (
+                <div key={`${match.file}-${match.line ?? 0}-${index}`} className="tool-search-match">
+                  <span className="tool-search-match-file">{match.file}</span>
+                  {typeof match.line === 'number' ? <span className="tool-search-match-line">:{match.line}</span> : null}
+                  <span className="tool-search-match-text">{match.text}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

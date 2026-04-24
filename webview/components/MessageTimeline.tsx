@@ -84,7 +84,11 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
     case 'working':
       return (
         <article className="chat-row working-row" aria-label="Agent is working">
-          <span className="spinner-dot" />
+          <span className="working-dots">
+            <span className="working-dot" />
+            <span className="working-dot" />
+            <span className="working-dot" />
+          </span>
           <span>Working</span>
         </article>
       );

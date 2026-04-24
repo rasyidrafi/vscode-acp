@@ -697,12 +697,42 @@ body.vscode-dark .message-copy-tooltip {
   align-items: center;
   gap: 8px;
   align-self: flex-start;
-  width: max-content;
-  border: 1px solid var(--acp-border);
-  border-radius: 999px;
-  color: var(--acp-muted);
-  background: color-mix(in srgb, var(--acp-surface) 72%, transparent);
-  padding: 6px 10px;
+  padding: 4px 6px;
+  color: color-mix(in srgb, var(--acp-muted) 70%, transparent);
+  font-size: 11px;
+}
+
+.working-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.working-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--acp-muted) 40%, transparent);
+  animation: working-pulse 1.2s ease-in-out infinite;
+}
+
+.working-dot:nth-child(2) {
+  animation-delay: 200ms;
+}
+
+.working-dot:nth-child(3) {
+  animation-delay: 400ms;
+}
+
+@keyframes working-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .active-plan-panel {
@@ -823,25 +853,6 @@ body.vscode-dark .message-copy-tooltip {
   margin-left: 6px;
   border-radius: 999px;
   background: var(--vscode-progressBar-background);
-}
-
-.spinner-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--vscode-progressBar-background);
-  animation: pulse 900ms ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-
-  50% {
-    opacity: 1;
-  }
 }
 
 .empty-state {

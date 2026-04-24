@@ -91,13 +91,28 @@ describe('deriveTimelineRows', () => {
       ]);
   });
 
-  it('does not add a working row when a stream is visible', () => {
-    const rows = deriveTimelineRows([
-      userMessage('user-1'),
-      assistantMessage('assistant-1', 'Streaming', true),
-    ], [], { turnInProgress: true });
+  it('only shows assistant meta for the absolute last message when turn is finished', () => {
+    const user = userMessage('user-1');
+    const assistant = { ...assistantMessage('assistant-1'), order: 2 };
+    const t = { ...thought('thought-1'), order: 3 };
 
-    expect(rows.map((row) => row.kind)).toEqual(['message', 'message']);
+    // Assistant message followed by thought - should NOT show meta
+    const rowsWithThought = deriveTimelineRows([user, assistant], [t], { turnInProgress: false });
+    expect(rowsWithThought.find(r => r.id === 'assistant-1')).toMatchObject({
+      showAssistantMeta: false
+    });
+
+    // Assistant message is last but turn in progress - should NOT show meta
+    const rowsInProgress = deriveTimelineRows([user, assistant], [], { turnInProgress: true });
+    expect(rowsInProgress.find(r => r.id === 'assistant-1')).toMatchObject({
+      showAssistantMeta: false
+    });
+
+    // Assistant message is last and turn NOT in progress - SHOULD show meta
+    const rowsFinished = deriveTimelineRows([user, assistant], [], { turnInProgress: false });
+    expect(rowsFinished.find(r => r.id === 'assistant-1')).toMatchObject({
+      showAssistantMeta: true
+    });
   });
 });
 

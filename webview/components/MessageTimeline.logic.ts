@@ -28,6 +28,7 @@ function buildRows(
   const rows: TimelineRow[] = [];
   const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
   const lastAssistantId = [...messages].reverse().find((item) => item.role === 'assistant')?.id ?? null;
+  const lastItemId = mergedItems[mergedItems.length - 1]?.id ?? null;
   let awaitingResponseStart = false;
 
   for (const item of mergedItems) {
@@ -48,7 +49,7 @@ function buildRows(
           id: item.id,
           item,
           showResponseDivider: awaitingResponseStart,
-          showAssistantMeta: item.id === lastAssistantId,
+          showAssistantMeta: item.id === lastAssistantId && item.id === lastItemId && !turnInProgress,
         });
         awaitingResponseStart = false;
         break;

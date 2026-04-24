@@ -134,7 +134,6 @@ function MessageRow(
             )}
           </div>
         ) : null}
-        {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
       </div>
     </article>
   );
@@ -357,21 +356,23 @@ function ToolCallRow(
         )}
       </div>
       {isOpen && (
-        <div className="tool-row-content">
-          {item.input ? (
-            <ToolSection label="Input">
-              <pre>{item.input}</pre>
-            </ToolSection>
-          ) : null}
-          {item.output ? (
-            <ToolSection label="Output">
-              <pre>{item.output}</pre>
-            </ToolSection>
-          ) : item.detail ? (
-            <ToolSection label="Detail">
-              <pre>{item.detail}</pre>
-            </ToolSection>
-          ) : null}
+        <div className="tool-scroll-container">
+          <div className="tool-row-content">
+            {item.input ? (
+              <ToolSection label="Input">
+                <pre>{item.input}</pre>
+              </ToolSection>
+            ) : null}
+            {item.output ? (
+              <ToolSection label="Output">
+                <pre>{item.output}</pre>
+              </ToolSection>
+            ) : item.detail ? (
+              <ToolSection label="Detail">
+                <pre>{item.detail}</pre>
+              </ToolSection>
+            ) : null}
+          </div>
         </div>
       )}
     </article>

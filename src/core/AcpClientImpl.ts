@@ -110,4 +110,9 @@ export class AcpClientImpl implements Client {
   ): Promise<ReleaseTerminalResponse> {
     return this.terminalHandler.releaseTerminal(params);
   }
+
+  dispose(): void {
+    this.agent = null;
+    this.terminalHandler.dispose();
+  }
 }

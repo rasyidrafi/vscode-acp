@@ -16,6 +16,12 @@ export interface ConnectionInfo {
   connection: ClientSideConnection;
   client: AcpClientImpl;
   initResponse: InitializeResponse;
+  dispose(): void;
+}
+
+interface TappedStream {
+  stream: Stream;
+  dispose(): void;
 }
 
 /**
@@ -37,6 +43,8 @@ export class ConnectionManager {
     if (!process.stdout || !process.stdin) {
       throw new Error('Agent process missing stdio streams');
     }
+
+    this.disposeConnection(agentId);
 
     log(`ConnectionManager: connecting to agent ${agentId}`);
 
@@ -68,7 +76,7 @@ export class ConnectionManager {
         client.setAgent(agent);
         return client;
       },
-      tappedStream,
+      tappedStream.stream,
     );
 
     // Initialize the connection
@@ -90,8 +98,19 @@ export class ConnectionManager {
 
     log(`ConnectionManager: initialized. Agent: ${initResponse.agentInfo?.name || 'unknown'} v${initResponse.agentInfo?.version || '?'}`);
 
-    const info: ConnectionInfo = { connection, client, initResponse };
+    const info: ConnectionInfo = {
+      connection,
+      client,
+      initResponse,
+      dispose: () => {
+        tappedStream.dispose();
+        client.dispose();
+      },
+    };
     this.connections.set(agentId, info);
+    void connection.closed.finally(() => {
+      this.disposeConnection(agentId, info);
+    });
 
     return info;
   }
@@ -101,17 +120,34 @@ export class ConnectionManager {
   }
 
   removeConnection(agentId: string): void {
-    this.connections.delete(agentId);
+    this.disposeConnection(agentId);
   }
 
   dispose(): void {
-    this.connections.clear();
+    for (const agentId of Array.from(this.connections.keys())) {
+      this.disposeConnection(agentId);
+    }
+  }
+
+  disposeConnection(agentId: string, expectedInfo?: ConnectionInfo): void {
+    const info = this.connections.get(agentId);
+    if (!info || (expectedInfo && info !== expectedInfo)) {
+      return;
+    }
+
+    this.connections.delete(agentId);
+
+    try {
+      info.dispose();
+    } catch (e) {
+      logError(`Failed to dispose connection for ${agentId}`, e);
+    }
   }
 
   /**
    * Wrap a Stream to intercept and log all messages in both directions.
    */
-  private tapStream(stream: Stream): Stream {
+  private tapStream(stream: Stream): TappedStream {
     // Tap outgoing messages (client → agent)
     const sendTap = new TransformStream({
       transform(chunk: unknown, controller: TransformStreamDefaultController) {
@@ -128,14 +164,37 @@ export class ConnectionManager {
       },
     });
 
+    const sendAbort = new AbortController();
+    const recvAbort = new AbortController();
+
     // Pipe: sendTap.readable → original writable, original readable → recvTap.writable
     // These run in the background — no need to await
-    void sendTap.readable.pipeTo(stream.writable).catch(e => logError('Traffic tap send pipe error', e));
-    void stream.readable.pipeTo(recvTap.writable).catch(e => logError('Traffic tap recv pipe error', e));
+    void sendTap.readable
+      .pipeTo(stream.writable, { signal: sendAbort.signal })
+      .catch(e => {
+        if (sendAbort.signal.aborted) {
+          return;
+        }
+        logError('Traffic tap send pipe error', e);
+      });
+    void stream.readable
+      .pipeTo(recvTap.writable, { signal: recvAbort.signal })
+      .catch(e => {
+        if (recvAbort.signal.aborted) {
+          return;
+        }
+        logError('Traffic tap recv pipe error', e);
+      });
 
     return {
-      writable: sendTap.writable,
-      readable: recvTap.readable,
+      stream: {
+        writable: sendTap.writable,
+        readable: recvTap.readable,
+      },
+      dispose: () => {
+        sendAbort.abort();
+        recvAbort.abort();
+      },
     };
   }
 }

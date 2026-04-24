@@ -37,6 +37,8 @@ export class SessionManager extends EventEmitter {
 
   /** Maps agentName → activeSessionId for the one-session-per-agent model. */
   private agentSessions: Map<string, string> = new Map();
+  /** Maps agentId → activeSessionId so process lifecycle can clean up deterministically. */
+  private agentIdSessions: Map<string, string> = new Map();
 
   constructor(
     private readonly agentManager: AgentManager,
@@ -44,7 +46,30 @@ export class SessionManager extends EventEmitter {
     private readonly sessionUpdateHandler: SessionUpdateHandler,
   ) {
     super();
+    this.agentManager.on('agent-error', this.handleAgentError);
+    this.agentManager.on('agent-closed', this.handleAgentClosed);
   }
+
+  private readonly handleAgentError = (evt: { agentId: string; error: Error }): void => {
+    const session = this.getSessionForAgentId(evt.agentId);
+    if (session) {
+      logError(`Agent ${session.agentName} error`, evt.error);
+    } else {
+      logError(`Agent ${evt.agentId} error`, evt.error);
+    }
+    this.emit('agent-error', evt.agentId, evt.error);
+  };
+
+  private readonly handleAgentClosed = (evt: { agentId: string; code: number | null }): void => {
+    const session = this.getSessionForAgentId(evt.agentId);
+    if (session) {
+      log(`Agent ${session.agentName} closed with code ${evt.code}`);
+      this.cleanupSessionByAgentId(evt.agentId);
+    } else {
+      this.connectionManager.disposeConnection(evt.agentId);
+    }
+    this.emit('agent-closed', evt.agentId, evt.code);
+  };
 
   private getWorkspaceCwd(): string {
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -89,32 +114,6 @@ export class SessionManager extends EventEmitter {
       const agentInstance = this.agentManager.spawnAgent(agentName, config, workspaceCwd);
       const agentId = agentInstance.id;
 
-      // Listen for agent errors/close
-      this.agentManager.on('agent-error', (evt: { agentId: string; error: Error }) => {
-        if (evt.agentId === agentId) {
-          logError(`Agent ${agentName} error`, evt.error);
-          this.emit('agent-error', agentId, evt.error);
-        }
-      });
-
-      this.agentManager.on('agent-closed', (evt: { agentId: string; code: number | null }) => {
-        if (evt.agentId === agentId) {
-          log(`Agent ${agentName} closed with code ${evt.code}`);
-          // Clean up the session for this agent
-          const sessionId = this.agentSessions.get(agentName);
-          if (sessionId) {
-            this.sessions.delete(sessionId);
-            this.agentSessions.delete(agentName);
-            if (this.activeSessionId === sessionId) {
-              this.activeSessionId = null;
-            }
-            this.emit('agent-disconnected', agentName);
-            this.emit('active-session-changed', null);
-          }
-          this.emit('agent-closed', agentId, evt.code);
-        }
-      });
-
       // Connect and initialize
       const agentProcess = this.agentManager.getAgent(agentId);
       if (!agentProcess) {
@@ -134,6 +133,7 @@ export class SessionManager extends EventEmitter {
 
       this.sessions.set(sessionInfo.sessionId, sessionInfo);
       this.agentSessions.set(agentName, sessionInfo.sessionId);
+      this.agentIdSessions.set(agentId, sessionInfo.sessionId);
       this.activeSessionId = sessionInfo.sessionId;
 
       this.emit('agent-connected', agentName);
@@ -177,17 +177,8 @@ export class SessionManager extends EventEmitter {
     log(`Disconnecting agent ${agentName}`);
     sendEvent('agent/disconnect', { agentName });
 
+    this.cleanupSessionByAgentId(session.agentId);
     this.agentManager.killAgent(session.agentId);
-    this.connectionManager.removeConnection(session.agentId);
-    this.sessions.delete(sessionId);
-    this.agentSessions.delete(agentName);
-
-    if (this.activeSessionId === sessionId) {
-      this.activeSessionId = null;
-    }
-
-    this.emit('agent-disconnected', agentName);
-    this.emit('active-session-changed', null);
   }
 
   /**
@@ -419,6 +410,43 @@ export class SessionManager extends EventEmitter {
     return this.connectionManager.getConnection(session.agentId);
   }
 
+  private getSessionForAgentId(agentId: string): SessionInfo | undefined {
+    const sessionId = this.agentIdSessions.get(agentId);
+    if (!sessionId) {
+      return undefined;
+    }
+    return this.sessions.get(sessionId);
+  }
+
+  private cleanupSessionByAgentId(agentId: string): void {
+    const sessionId = this.agentIdSessions.get(agentId);
+    if (!sessionId) {
+      return;
+    }
+
+    const session = this.sessions.get(sessionId);
+    this.agentIdSessions.delete(agentId);
+    this.sessions.delete(sessionId);
+
+    if (session) {
+      this.agentSessions.delete(session.agentName);
+    }
+
+    const wasActive = this.activeSessionId === sessionId;
+    if (wasActive) {
+      this.activeSessionId = null;
+    }
+
+    this.connectionManager.disposeConnection(agentId);
+
+    if (session) {
+      this.emit('agent-disconnected', session.agentName);
+    }
+    if (wasActive) {
+      this.emit('active-session-changed', null);
+    }
+  }
+
   // --- Cleanup ---
 
   dispose(): void {
@@ -426,5 +454,8 @@ export class SessionManager extends EventEmitter {
     this.connectionManager.dispose();
     this.sessions.clear();
     this.agentSessions.clear();
+    this.agentIdSessions.clear();
+    this.agentManager.off('agent-error', this.handleAgentError);
+    this.agentManager.off('agent-closed', this.handleAgentClosed);
   }
 }

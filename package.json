@@ -388,7 +388,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src --max-warnings 0",
-    "test:unit": "vitest run --root . webview src/core src/handlers src/utils src/shared src/config src/ui",
+    "test:unit": "vitest run --root . --exclude '**/node_modules/**' --exclude '**/dist/**' --exclude '**/out/**' webview src/core src/handlers src/utils src/shared src/config src/ui",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "test": "vscode-test"
   },

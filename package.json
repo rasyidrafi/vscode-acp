@@ -226,7 +226,7 @@
       "properties": {
         "acp.agents": {
           "type": "object",
-          "description": "Agent configurations. Each key is the agent name, value has command, args, and env.",
+          "description": "Agent configurations. Each key is the agent name. Optional binaryPath takes priority, then binaryName is resolved from PATH, then command plus args is used as fallback.",
           "default": {
             "GitHub Copilot": {
               "command": "npx",
@@ -244,10 +244,15 @@
               "env": {}
             },
             "Gemini CLI": {
+              "binaryName": "gemini",
+              "binaryArgs": [
+                "--acp"
+              ],
+              "binaryPath": "",
               "command": "npx",
               "args": [
                 "@google/gemini-cli@latest",
-                "--experimental-acp"
+                "--acp"
               ],
               "env": {}
             },

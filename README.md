@@ -40,7 +40,7 @@ The extension comes with default configurations for:
 |-------|---------|
 | GitHub Copilot | `npx @github/copilot-language-server@latest --acp` |
 | Claude Code | `npx @zed-industries/claude-code-acp@latest` |
-| Gemini CLI | `npx @google/gemini-cli@latest --experimental-acp` |
+| Gemini CLI | `gemini --acp` if found on `PATH`, otherwise `npx @google/gemini-cli@latest --acp` |
 | Qwen Code | `npx @qwen-code/qwen-code@latest --acp --experimental-skills` |
 | Auggie CLI | `npx @augmentcode/auggie@latest --acp` |
 | Qoder CLI | `npx @qoder-ai/qodercli@latest --acp` |
@@ -52,13 +52,21 @@ The extension comes with default configurations for:
 
 You can add custom agent configurations in settings.
 
+For each agent entry, launch resolution is:
+
+1. `binaryPath` when explicitly set
+2. `binaryName` resolved from `PATH`
+3. `command` plus `args` as fallback
+
+This is useful for CLIs like Gemini that may already be installed locally, while still preserving `npx` fallback for ACP packages that do not expose a stable local binary.
+
 > **Note on Hermes Agent**: Hermes is a Python package, not an npm package. Install it via the [Hermes Quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart) (Linux/macOS/WSL2 only — Windows requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)). Make sure `hermes` is on your `PATH` and launch VS Code from the same shell/venv. Configure credentials with `hermes model`.
 
 ## Extension Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `acp.agents` | *(11 agents)* | Agent configurations. Each key is the agent name, value has `command`, `args`, and `env`. |
+| `acp.agents` | *(11 agents)* | Agent configurations. Each key is the agent name, with optional `binaryPath`, `binaryName`, `binaryArgs`, plus fallback `command`, `args`, and `env`. |
 | `acp.autoApprovePermissions` | `ask` | How agent permission requests are handled: `ask` or `allowAll`. |
 | `acp.defaultWorkingDirectory` | `""` | Default working directory for agent sessions. Empty uses current workspace. |
 | `acp.logTraffic` | `true` | Log all ACP protocol traffic to the ACP Traffic output channel. |

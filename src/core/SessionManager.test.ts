@@ -1,13 +1,19 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
+import { RequestError } from '@agentclientprotocol/sdk';
+
+const { showQuickPickMock, showInformationMessageMock } = vi.hoisted(() => ({
+  showQuickPickMock: vi.fn(),
+  showInformationMessageMock: vi.fn(),
+}));
 
 vi.mock('vscode', () => ({
   workspace: {
     workspaceFolders: undefined,
   },
   window: {
-    showQuickPick: vi.fn(),
-    showInformationMessage: vi.fn(),
+    showQuickPick: showQuickPickMock,
+    showInformationMessage: showInformationMessageMock,
   },
 }));
 
@@ -21,6 +27,13 @@ vi.mock('../utils/TelemetryManager', () => ({
   sendError: vi.fn(),
 }));
 
+vi.mock('../config/AgentConfig', () => ({
+  getAgentConfigs: vi.fn(() => ({
+    Codex: { command: 'npx', args: ['codex'] },
+    'Claude Code': { command: 'npx', args: ['claude'] },
+  })),
+}));
+
 import { SessionManager, SessionInfo } from './SessionManager';
 import { SessionUpdateHandler } from '../handlers/SessionUpdateHandler';
 
@@ -32,6 +45,7 @@ class FakeAgentManager extends EventEmitter {
 }
 
 class FakeConnectionManager {
+  public connect = vi.fn();
   public disposeConnection = vi.fn();
   public dispose = vi.fn();
   public getConnection = vi.fn();
@@ -68,6 +82,27 @@ function seedSession(manager: SessionManager, session: SessionInfo): void {
 }
 
 describe('SessionManager', () => {
+  it('reuses an existing live session for the same agent', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const session = createSession();
+    seedSession(manager, session);
+    const changed = vi.fn();
+    manager.on('active-session-changed', changed);
+
+    const result = await manager.connectToAgent('Codex');
+
+    expect(result).toBe(session);
+    expect(agentManager.spawnAgent).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledWith('session-1');
+  });
+
   it('disconnects an agent with idempotent cleanup', async () => {
     const agentManager = new FakeAgentManager();
     const connectionManager = new FakeConnectionManager();
@@ -127,5 +162,48 @@ describe('SessionManager', () => {
     expect(activeChanged).toHaveBeenCalledWith(null);
     expect(closed).toHaveBeenCalledWith('agent-2', 137);
     expect(manager.getSession('session-2')).toBeUndefined();
+  });
+
+  it('authenticates and retries session creation when the agent requires auth', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const child = { process: {} };
+    const newSession = vi.fn()
+      .mockRejectedValueOnce(new RequestError(-32000, 'auth required'))
+      .mockResolvedValueOnce({
+        sessionId: 'session-auth',
+        modes: null,
+        models: null,
+      });
+    const authenticate = vi.fn().mockResolvedValue({});
+
+    agentManager.spawnAgent.mockReturnValue({ id: 'agent-auth' });
+    agentManager.getAgent.mockReturnValue(child);
+    connectionManager.connect.mockResolvedValue({
+      connection: {
+        newSession,
+        authenticate,
+      },
+      initResponse: {
+        authMethods: [{ id: 'login', name: 'Login' }],
+      },
+    });
+    showInformationMessageMock.mockResolvedValue('Authenticate');
+
+    const session = await manager.connectToAgent('Codex');
+
+    expect(authenticate).toHaveBeenCalledWith({ methodId: 'login' });
+    expect(newSession).toHaveBeenCalledTimes(2);
+    expect(session).toMatchObject({
+      sessionId: 'session-auth',
+      agentId: 'agent-auth',
+      agentName: 'Codex',
+    });
   });
 });

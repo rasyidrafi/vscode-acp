@@ -1,3 +1,4 @@
+import { Check, Copy, ChevronRight, ChevronDown, Settings, Pencil, FilePlus, BookOpen, Terminal, Folder, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -186,9 +187,9 @@ function MessageCopyButton({ text }: { text: string }): ReactElement {
         disabled={copied}
       >
         {copied ? (
-          <i className="codicon codicon-check" style={{ fontSize: '14px' }}></i>
+          <Check size={14} />
         ) : (
-          <i className="codicon codicon-copy" style={{ fontSize: '14px' }}></i>
+          <Copy size={14} />
         )}
       </button>
       <span className={`message-copy-tooltip${copied ? ' copied' : ''}`}>
@@ -218,8 +219,8 @@ function ThoughtRow(
       >
         <summary className="thought-summary">
           <span className="thought-chevron" aria-hidden="true">
-            <i className="codicon codicon-chevron-right chevron-right"></i>
-            <i className="codicon codicon-chevron-down chevron-down"></i>
+            <ChevronRight className="chevron-right" size={12} />
+            <ChevronDown className="chevron-down" size={12} />
           </span>
           <span className="thought-label">Thought</span>
         </summary>
@@ -235,23 +236,23 @@ function ThoughtRow(
 
 function getToolIcon(toolName: string): ReactElement {
   const tool = toolName.toLowerCase();
-  let iconClass = 'codicon-settings-gear';
+  let Icon = Settings;
 
   if (tool.includes('edit') || tool.includes('patch') || tool.includes('replace')) {
-    iconClass = 'codicon-edit';
+    Icon = Pencil;
   } else if (tool.includes('write') || tool.includes('create')) {
-    iconClass = 'codicon-new-file';
+    Icon = FilePlus;
   } else if (tool.includes('read') || tool.includes('view') || tool.includes('cat')) {
-    iconClass = 'codicon-book';
+    Icon = BookOpen;
   } else if (tool.includes('bash') || tool.includes('shell') || tool.includes('cmd') || tool.includes('terminal') || tool.includes('run')) {
-    iconClass = 'codicon-terminal';
+    Icon = Terminal;
   } else if (tool.includes('list') || tool.includes('ls')) {
-    iconClass = 'codicon-folder';
+    Icon = Folder;
   } else if (tool.includes('search') || tool.includes('grep') || tool.includes('find') || tool.includes('glob')) {
-    iconClass = 'codicon-search';
+    Icon = Search;
   }
 
-  return <i className={`codicon ${iconClass}`} style={{ fontSize: '14px' }}></i>;
+  return <Icon size={14} />;
 }
 
 function ToolCallRow(
@@ -284,15 +285,14 @@ function ToolCallRow(
               {getToolIcon(title)}
             </div>
             <div className={`tool-row-chevron-layer${isOpen ? ' visible' : ''}`} aria-hidden="true">
-              <i
-                className="codicon codicon-chevron-right"
+              <ChevronRight
+                size={12}
                 style={{
-                  fontSize: '12px',
                   display: 'inline-block',
                   transform: isOpen ? 'rotate(90deg)' : 'none',
                   transition: 'transform 0.1s ease',
                 }}
-              ></i>
+              />
             </div>
           </div>
           <span className="tool-row-title" title={title}>{title}</span>

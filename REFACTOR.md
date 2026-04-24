@@ -306,7 +306,7 @@ The UI should feel like a first-class VS Code sidebar:
 - keep the composer pinned at the bottom
 - preserve text wrapping and avoid horizontal overflow
 - use visible focus states for keyboard users
-- use codicons or a tiny local icon set before adding a large icon dependency
+- use lucide-react for a consistent, tree-shakable icon set
 
 Controls to build:
 

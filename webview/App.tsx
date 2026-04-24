@@ -1,3 +1,4 @@
+import { Plug, X } from 'lucide-react';
 import { useEffect, useReducer } from 'react';
 import type { ReactElement } from 'react';
 
@@ -72,7 +73,7 @@ export function App(): ReactElement {
                   className="empty-connect-button"
                   onClick={() => postToExtension({ type: 'executeCommand', command: 'acp.connectAgent' })}
                 >
-                  <i className="codicon codicon-plug" style={{ fontSize: '16px', marginRight: '8px' }}></i>
+                  <Plug size={16} style={{ marginRight: '8px' }} />
                   <span>Connect Agent</span>
                 </button>              </div>
             ) : null}
@@ -101,7 +102,7 @@ export function App(): ReactElement {
               postToExtension({ type: 'clearError' });
             }}
           >
-            <i className="codicon codicon-close" style={{ fontSize: '14px' }}></i>
+            <X size={14} />
           </button>
         </div>
       ) : null}

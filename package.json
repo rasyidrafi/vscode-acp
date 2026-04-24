@@ -365,8 +365,8 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
-    "@vscode/codicons": "^0.0.45",
     "@vscode/extension-telemetry": "^1.5.0",
+    "lucide-react": "^1.9.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.0.0",

@@ -1,3 +1,4 @@
+import { X, Plus, Square, ArrowUp } from 'lucide-react';
 import type { AvailableCommand } from '@agentclientprotocol/sdk';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
@@ -152,7 +153,7 @@ export function ChatComposer({
                   aria-label={`Remove ${file.name}`}
                   onClick={() => onRemoveAttachment(file.path)}
                 >
-                  <i className="codicon codicon-close" style={{ fontSize: '10px' }}></i>
+                  <X size={10} />
                 </button>
               </span>
             ))}
@@ -179,7 +180,7 @@ export function ChatComposer({
               title="Attach file"
               onClick={onAttachFile}
             >
-              <i className="codicon codicon-add" style={{ fontSize: '16px' }}></i>
+              <Plus size={16} />
             </button>
             {availableCommands.length > 0 ? <span className="composer-hint">/ commands</span> : null}
           </div>
@@ -192,9 +193,9 @@ export function ChatComposer({
             title={sendState.isCancel ? 'Stop' : 'Send'}
           >
             {sendState.isCancel ? (
-              <i className="codicon codicon-debug-stop" style={{ fontSize: '14px' }}></i>
+              <Square size={14} />
             ) : (
-              <i className="codicon codicon-arrow-up" style={{ fontSize: '14px' }}></i>
+              <ArrowUp size={14} />
             )}
           </button>
         </div>

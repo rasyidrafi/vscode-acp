@@ -1,3 +1,4 @@
+import { ChevronDown, Lock, Unlock, Pencil } from 'lucide-react';
 import type { SessionModeState, SessionModelState } from '@agentclientprotocol/sdk';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
@@ -190,7 +191,7 @@ function SessionSelect({
         }}
       >
         <span className="select-value">{currentOption?.label || value}</span>
-        <i className="codicon codicon-chevron-down select-chevron" style={{ fontSize: '12px' }}></i>
+        <ChevronDown size={12} className="select-chevron" />
       </button>
       {isOpen ? (
         <div
@@ -251,13 +252,13 @@ function getModeOptionIcon(label: string, id: string): (() => ReactElement) | nu
 }
 
 function LockIcon(): ReactElement {
-  return <i className="codicon codicon-lock" style={{ fontSize: '14px' }}></i>;
+  return <Lock size={14} />;
 }
 
 function UnlockIcon(): ReactElement {
-  return <i className="codicon codicon-unlock" style={{ fontSize: '14px' }}></i>;
+  return <Unlock size={14} />;
 }
 
 function PencilIcon(): ReactElement {
-  return <i className="codicon codicon-edit" style={{ fontSize: '14px' }}></i>;
+  return <Pencil size={14} />;
 }

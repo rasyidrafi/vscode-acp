@@ -138,6 +138,24 @@ export function extractOutputText(output: unknown): string {
     return output;
   }
 
+  if (Array.isArray(output)) {
+    return output
+      .map((part) => {
+        if (part && typeof part === 'object') {
+          const p = part as Record<string, unknown>;
+          if (p.type === 'content' && p.content && typeof p.content === 'object') {
+            const c = p.content as Record<string, unknown>;
+            return typeof c.text === 'string' ? c.text : null;
+          }
+          return typeof p.text === 'string' ? p.text : null;
+        }
+        return typeof part === 'string' ? part : null;
+      })
+      .filter((part): part is string => part !== null)
+      .join('\n')
+      .trim();
+  }
+
   const record = asRecord(output);
   if (!record) {
     return '';

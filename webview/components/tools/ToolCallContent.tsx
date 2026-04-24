@@ -31,13 +31,10 @@ export function ToolCallContent({ item }: ToolCallContentProps): ReactElement {
         output={parsedOutput}
       />
       {item.locations && item.locations.length > 0 && (
-        <LocationList locations={item.locations} />
-      )}
-      {item.status === 'running' && (
-        <div className="tool-running-indicator">
-          <span className="tool-running-spinner"></span>
-          Processing...
-        </div>
+        <LocationList
+          locations={item.locations}
+          hideLabel={renderer === 'read' || renderer === 'search'}
+        />
       )}
     </div>
   );
@@ -46,7 +43,7 @@ export function ToolCallContent({ item }: ToolCallContentProps): ReactElement {
 function ToolMainContent(
   { renderer, item, input, output }:
   { renderer: ToolRendererKind; item: ToolCallActivity; input: unknown; output: unknown },
-): ReactElement {
+): ReactElement | null {
   switch (renderer) {
     case 'bash':
       return <BashToolContent item={item} input={input} output={output} />;
@@ -55,27 +52,23 @@ function ToolMainContent(
     case 'search':
       return <SearchToolContent item={item} input={input} output={output} />;
     case 'read':
-      return <ReadToolContent item={item} input={input} output={output} />;
+      return <ReadToolContent item={item} />;
     default:
       return <GenericToolContent item={item} />;
   }
 }
 
 function ReadToolContent(
-  { item, input, output }: { item: ToolCallActivity; input: unknown; output: unknown },
-): ReactElement {
-  const outputText = extractOutputText(output).trim();
-  const inputRecord = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
-  const path = (inputRecord.path as string) || (inputRecord.filePath as string) || item.detail;
+  { item }: { item: ToolCallActivity },
+): ReactElement | null {
+  const isRedundant = item.locations?.some((loc) => loc.path === item.detail);
+  if (isRedundant || !item.detail) {
+    return null;
+  }
 
   return (
     <div className="tool-read-content">
-      {path && <div className="tool-read-path">{path}</div>}
-      {outputText ? (
-        <pre className="tool-code-block"><code>{outputText}</code></pre>
-      ) : item.status === 'completed' ? (
-        <div className="tool-empty-note">File is empty</div>
-      ) : null}
+      <div className="tool-read-detail">{item.detail}</div>
     </div>
   );
 }
@@ -105,16 +98,24 @@ function BashToolContent(
   );
 }
 
-function LocationList({ locations }: { locations: Array<{ path: string }> }): ReactElement {
+function LocationList({
+  locations,
+  hideLabel,
+}: {
+  locations: Array<{ path: string }>;
+  hideLabel?: boolean;
+}): ReactElement {
   if (locations.length === 0) {
     return <></>;
   }
 
   return (
-    <div className="tool-locations-section">
-      <div className="tool-section-label">
-        {locations.length === 1 ? 'Location' : `${locations.length} Locations`}
-      </div>
+    <div className={`tool-locations-section${hideLabel ? ' no-label' : ''}`}>
+      {!hideLabel && (
+        <div className="tool-section-label">
+          {locations.length === 1 ? 'Location' : `${locations.length} Locations`}
+        </div>
+      )}
       <div className="tool-search-results-container" style={{ maxHeight: '160px' }}>
         <div className="tool-search-files">
           {locations.map((loc, idx) => (
@@ -286,19 +287,23 @@ function DiffLine(
 }
 
 function GenericToolContent({ item }: { item: ToolCallActivity }): ReactElement {
+  const parsedInput = parseMaybeJson(item.input);
+  const parsedOutput = parseMaybeJson(item.output);
+
+  const inputStr = item.input ? stringifyUnknown(parsedInput) : null;
+  const outputStr = item.output ? stringifyUnknown(parsedOutput) : null;
+
   return (
     <>
-      {item.input ? (
+      {inputStr && inputStr !== item.detail ? (
         <ToolSection label="Input">
-          <pre className="tool-code-block"><code>{stringifyUnknown(parseMaybeJson(item.input))}</code></pre>
+          <pre className="tool-code-block"><code>{inputStr}</code></pre>
         </ToolSection>
       ) : null}
-      {item.output ? (
+      {outputStr && outputStr !== item.detail ? (
         <ToolSection label="Output">
-          <pre className="tool-code-block"><code>{stringifyUnknown(parseMaybeJson(item.output))}</code></pre>
+          <pre className="tool-code-block"><code>{outputStr}</code></pre>
         </ToolSection>
-      ) : item.detail ? (
-        <div className="thought-content" style={{ padding: '0 0 8px 0' }}>{item.detail}</div>
       ) : null}
     </>
   );

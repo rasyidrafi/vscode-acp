@@ -259,24 +259,28 @@ function getToolIcon(toolName: string): ReactElement {
 
 function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
-  const preview = item.detail && normalizeToolPreview(item.detail, item.title);
   const title = item.title;
-  const hasContent = !!(item.input || item.output || item.detail);
+  const detail = item.detail;
+  const lastLocation = item.locations && item.locations.length > 0
+    ? item.locations[item.locations.length - 1].path
+    : null;
+  const preview = detail || lastLocation;
+  const hasContent = !!(item.input || item.output || (item.locations && item.locations.length > 0));
 
   function handleHeaderClick(): void {
-    if (hasContent) {
+    if (hasContent || detail) {
       setIsOpen(!isOpen);
     }
   }
 
   return (
-    <article className={`chat-row tool-row ${item.status}${hasContent ? ' has-content' : ''}`}>
+    <article className={`chat-row tool-row ${item.status}${hasContent || detail ? ' has-content' : ''}`}>
       <div
         className="tool-row-header"
         onClick={handleHeaderClick}
         onKeyDown={(e) => e.key === 'Enter' && handleHeaderClick()}
         role="button"
-        tabIndex={hasContent ? 0 : -1}
+        tabIndex={hasContent || detail ? 0 : -1}
       >
         <div className="tool-row-header-left">
           <div className="tool-row-visual">
@@ -297,7 +301,7 @@ function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
           <span className="tool-row-title" title={title}>{title}</span>
         </div>
         {!isOpen && preview && (
-          <span className="tool-row-preview" title={item.detail}>
+          <span className="tool-row-preview" title={preview}>
             {preview}
           </span>
         )}

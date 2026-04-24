@@ -242,7 +242,7 @@ function upsertToolCall(
   });
 
   const input = update.rawInput ? stringifyAny(update.rawInput) : undefined;
-  const output = update.rawOutput ? stringifyAny(update.rawOutput) : undefined;
+  const output = update.rawOutput ? stringifyAny(update.rawOutput) : (update.content ? stringifyAny(update.content) : undefined);
 
   const item: ActivityItem = {
     order: existing?.order ?? nextOrder(segmentedState),
@@ -274,7 +274,7 @@ function updateToolCall(
   });
 
   const input = update.rawInput ? stringifyAny(update.rawInput) : undefined;
-  const output = update.rawOutput ? stringifyAny(update.rawOutput) : undefined;
+  const output = update.rawOutput ? stringifyAny(update.rawOutput) : (update.content ? stringifyAny(update.content) : undefined);
   const error = 'error' in update ? stringifyAny(update.error) : undefined;
 
   const item: ActivityItem = {
@@ -564,18 +564,33 @@ function deriveToolCallPresentation(
   const command = extractToolCommand(update);
   const path = extractPrimaryPath(update);
   const outputSummary = summarizeToolOutput(update);
+  const status = update.status;
 
-  if (command) {
+  if (command || update.kind === 'execute') {
+    let title = 'Ran command';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Running command';
+    } else if (status === 'failed') {
+      title = 'Command failed';
+    }
     return {
-      title: 'Ran command',
-      detail: command,
+      title,
+      detail: command ?? rawTitle,
     };
   }
 
-  if (lowerTitle.includes('read')) {
+  if (lowerTitle.includes('read') || update.kind === 'read' || lowerTitle.includes('view')) {
+    let title = 'Read file';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Viewing file';
+    } else if (status === 'completed') {
+      title = 'Viewed file';
+    } else if (status === 'failed') {
+      title = 'Failed to read file';
+    }
     return {
-      title: 'Read file',
-      detail: path ?? outputSummary ?? options.fallbackDetail,
+      title,
+      detail: outputSummary ?? rawTitle ?? options.fallbackDetail,
     };
   }
 
@@ -586,10 +601,19 @@ function deriveToolCallPresentation(
     lowerTitle.includes('move') ||
     lowerTitle.includes('rename') ||
     lowerTitle.includes('delete') ||
-    lowerTitle.includes('patch')
+    lowerTitle.includes('patch') ||
+    update.kind === 'edit'
   ) {
+    let title = 'Changed files';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Editing files';
+    } else if (status === 'completed') {
+      title = 'Edited files';
+    } else if (status === 'failed') {
+      title = 'Failed to edit files';
+    }
     return {
-      title: 'Changed files',
+      title,
       detail: path ?? outputSummary ?? options.fallbackDetail,
     };
   }
@@ -597,11 +621,19 @@ function deriveToolCallPresentation(
   if (
     lowerTitle.includes('search') ||
     lowerTitle.includes('grep') ||
-    lowerTitle.includes('find')
+    lowerTitle.includes('find') ||
+    update.kind === 'search'
   ) {
+    let title = 'Searched project';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Searching project';
+    } else if (status === 'failed') {
+      title = 'Search failed';
+    }
+    const query = extractSearchQuery(update);
     return {
-      title: 'Searched project',
-      detail: extractSearchQuery(update) ?? outputSummary ?? options.fallbackDetail,
+      title,
+      detail: query ?? outputSummary ?? rawTitle ?? options.fallbackDetail,
     };
   }
 
@@ -632,6 +664,11 @@ function extractToolCommand(
   if (executable && args) {
     return `${executable} ${args}`;
   }
+
+  if (update.kind === 'execute') {
+    return update.title;
+  }
+
   return executable ?? undefined;
 }
 
@@ -690,7 +727,7 @@ function collectPaths(
     paths.push(candidate);
   }
 
-  for (const key of ['rawInput', 'rawOutput', 'content', 'item', 'input', 'result', 'changes']) {
+  for (const key of ['rawInput', 'rawOutput', 'content', 'item', 'input', 'result', 'changes', 'locations']) {
     if (key in value) {
       collectPaths(value[key], paths, seen, depth + 1);
     }
@@ -721,6 +758,11 @@ function extractSearchQuery(
 function summarizeToolOutput(
   update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
 ): string | undefined {
+  const detailText = getToolDetail(update);
+  if (detailText) {
+    return summarizeText(detailText);
+  }
+
   const path = extractPrimaryPath(update);
   if (path) {
     return path;
@@ -735,7 +777,7 @@ function summarizeToolOutput(
       ?? summarizeText(firstString(rawOutput.stdout, rawOutput.output, rawOutput.content));
   }
 
-  return summarizeText(getToolDetail(update));
+  return undefined;
 }
 
 function summarizeText(value: string | undefined | null): string | undefined {

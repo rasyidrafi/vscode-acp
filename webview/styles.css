@@ -776,13 +776,13 @@ body.vscode-dark .message-copy-tooltip {
 .tool-content-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .tool-read-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .tool-read-path {
@@ -799,30 +799,7 @@ body.vscode-dark .message-copy-tooltip {
   gap: 4px;
   border-top: 1px solid var(--acp-border);
   padding-top: 10px;
-  margin-top: 4px;
-}
-
-.tool-running-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.82em;
-  color: var(--acp-muted);
-  font-style: italic;
-  padding: 4px 0;
-}
-
-.tool-running-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--acp-border);
-  border-top-color: var(--vscode-progressBar-background);
-  border-radius: 50%;
-  animation: tool-spin 0.8s linear infinite;
-}
-
-@keyframes tool-spin {
-  to { transform: rotate(360deg); }
+  margin-top: 2px;
 }
 
 .tool-code-block {
@@ -848,7 +825,7 @@ body.vscode-dark .message-copy-tooltip {
 .tool-empty-note {
   color: color-mix(in srgb, var(--acp-muted) 75%, transparent);
   font-size: 0.85em;
-  padding: 8px 10px;
+  padding: 4px 10px;
 }
 
 .tool-terminal-window {
@@ -888,7 +865,7 @@ body.vscode-dark .message-copy-tooltip {
 .tool-search-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .tool-search-meta {
@@ -897,6 +874,7 @@ body.vscode-dark .message-copy-tooltip {
   gap: 8px;
   font-size: 0.85em;
   color: color-mix(in srgb, var(--acp-muted) 85%, transparent);
+  margin-bottom: 2px;
 }
 
 .tool-search-meta code {
@@ -1607,4 +1585,48 @@ body.vscode-dark .message-copy-tooltip {
     padding-right: 0;
     padding-left: 0;
   }
+}
+
+.tool-row-detail {
+  font-size: 0.82em;
+  color: var(--vscode-textLink-foreground);
+  margin-top: 4px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tool-row-preview {
+  font-size: 0.82em;
+  color: var(--acp-muted);
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tool-locations-section.no-label {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.tool-read-summary {
+  color: var(--vscode-textLink-foreground);
+  margin-bottom: 0;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.tool-read-detail {
+  font-size: 0.9em;
+  margin-bottom: 0;
+  color: var(--vscode-foreground);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tool-read-detail {
+  color: var(--vscode-textLink-foreground);
 }

@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { fetchRegistry } from '../config/RegistryClient';
 import type { AgentConfigEntry } from '../config/AgentConfig';
 import { sendEvent } from '../utils/TelemetryManager';
+import { parseCommandArgs } from '../utils/commandArgs';
 import type { CommandServices, AgentCommandTarget } from './types';
 import { getAgentName, registerCommand, registerTypedCommand } from './types';
 
@@ -31,11 +32,11 @@ function registerAddAgentCommand(services: CommandServices): vscode.Disposable {
     if (!command) { return; }
 
     const argsStr = await vscode.window.showInputBox({
-      prompt: 'Arguments (space-separated)',
+      prompt: 'Arguments (shell-style; quotes supported)',
       placeHolder: '-y @my-org/agent',
       title: 'Agent Arguments',
     });
-    const args = argsStr ? argsStr.split(/\s+/) : [];
+    const args = argsStr ? parseCommandArgs(argsStr) : [];
 
     const config = vscode.workspace.getConfiguration('acp');
     const agents = {

@@ -18,7 +18,8 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
   private view?: vscode.WebviewView;
   private updateListener: SessionUpdateListener;
-  private _hasChatContent = false;
+  private syncedTimelineSessionId: string | null = null;
+  private syncedHasChatContent = false;
   private readonly allowedCommands = new Set([
     'acp.connectAgent',
     'acp.addAgent',
@@ -81,8 +82,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   private async handleWebviewMessage(message: WebviewToExtensionMessage): Promise<void> {
     switch (message.type) {
       case 'sendPrompt':
-        this._hasChatContent = true;
         await this.handleSendPrompt(message.text);
+        break;
+      case 'stateSync':
+        this.syncedTimelineSessionId = message.activeSessionId;
+        this.syncedHasChatContent = message.hasChatContent;
         break;
       case 'cancelTurn':
         await this.handleCancelTurn();
@@ -273,7 +277,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    * Called when starting a new conversation.
    */
   clearChat(): void {
-    this._hasChatContent = false;
+    this.syncedHasChatContent = false;
     void vscode.commands.executeCommand('setContext', 'acp.turnInProgress', false);
     this.postMessage({ type: 'clearChat' });
   }
@@ -282,7 +286,8 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    * Whether the chat has any messages.
    */
   get hasChatContent(): boolean {
-    return this._hasChatContent;
+    const activeSessionId = this.sessionManager.getActiveSessionId();
+    return this.syncedTimelineSessionId === activeSessionId && this.syncedHasChatContent;
   }
 
   /**

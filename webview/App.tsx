@@ -35,6 +35,14 @@ export function App(): ReactElement {
     setPersistedState(toPersistedState(state));
   }, [state]);
 
+  useEffect(() => {
+    postToExtension({
+      type: 'stateSync',
+      activeSessionId: state.activeSessionId,
+      hasChatContent: state.messages.length > 0 || state.activities.length > 0,
+    });
+  }, [state.activeSessionId, state.messages.length, state.activities.length]);
+
   function submitPrompt(text: string): void {
     const attachmentPrefix = state.attachedFiles.length > 0
       ? `Attached files:\n${state.attachedFiles.map((file) => `- ${file.path}`).join('\n')}\n\n`

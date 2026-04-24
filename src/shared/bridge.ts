@@ -22,6 +22,7 @@ export interface AttachedFile {
 
 export type WebviewToExtensionMessage =
   | { type: 'ready' }
+  | { type: 'stateSync'; activeSessionId: string | null; hasChatContent: boolean }
   | { type: 'sendPrompt'; text: string }
   | { type: 'cancelTurn' }
   | { type: 'setMode'; modeId: string }
@@ -62,6 +63,9 @@ export function isWebviewToExtensionMessage(value: unknown): value is WebviewToE
     case 'cancelTurn':
     case 'clearError':
       return true;
+    case 'stateSync':
+      return (value.activeSessionId === null || typeof value.activeSessionId === 'string')
+        && typeof value.hasChatContent === 'boolean';
     case 'sendPrompt':
       return typeof value.text === 'string';
     case 'setMode':

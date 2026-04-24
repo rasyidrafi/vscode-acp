@@ -42,7 +42,6 @@ export function activate(context: vscode.ExtensionContext): void {
   const chatViewRegistration = vscode.window.registerWebviewViewProvider(
     ChatWebviewProvider.viewType,
     chatWebviewProvider,
-    { webviewOptions: { retainContextWhenHidden: true } },
   );
 
   const statusBarManager = new StatusBarManager(sessionManager);

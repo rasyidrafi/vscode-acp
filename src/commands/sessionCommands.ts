@@ -195,10 +195,7 @@ function registerSetModeCommand(services: CommandServices): vscode.Disposable {
 
     let nextModeId = modeId;
     if (!nextModeId) {
-      nextModeId = await vscode.window.showInputBox({
-        placeHolder: 'Enter mode ID (e.g., "plan", "code")',
-        title: 'Set Agent Mode',
-      }) || undefined;
+      nextModeId = await pickModeId(services);
     }
 
     if (!nextModeId) { return; }
@@ -219,10 +216,7 @@ function registerSetModelCommand(services: CommandServices): vscode.Disposable {
 
     let nextModelId = modelId;
     if (!nextModelId) {
-      nextModelId = await vscode.window.showInputBox({
-        placeHolder: 'Enter model ID',
-        title: 'Set Agent Model',
-      }) || undefined;
+      nextModelId = await pickModelId(services);
     }
 
     if (!nextModelId) { return; }
@@ -263,4 +257,75 @@ function registerAttachFileCommand(services: CommandServices): vscode.Disposable
       services.chatWebviewProvider.attachFile(uris[0]!);
     }
   });
+}
+
+async function pickModeId(services: CommandServices): Promise<string | undefined> {
+  const session = services.sessionManager.getActiveSession();
+  const availableModes = session?.modes?.availableModes ?? [];
+
+  if (availableModes.length > 0) {
+    const picked = await vscode.window.showQuickPick([
+      ...availableModes.map((mode) => ({
+        label: mode.name,
+        description: mode.id,
+        modeId: mode.id,
+      })),
+      {
+        label: 'Enter mode ID manually',
+        description: 'Use a custom mode identifier',
+        modeId: '__manual__',
+      },
+    ], {
+      placeHolder: 'Select an agent mode',
+      title: 'Set Agent Mode',
+    });
+
+    if (!picked) {
+      return undefined;
+    }
+    if (picked.modeId !== '__manual__') {
+      return picked.modeId;
+    }
+  }
+
+  return vscode.window.showInputBox({
+    placeHolder: 'Enter mode ID (e.g., "plan", "code")',
+    title: 'Set Agent Mode',
+  }) || undefined;
+}
+
+async function pickModelId(services: CommandServices): Promise<string | undefined> {
+  const session = services.sessionManager.getActiveSession();
+  const availableModels = session?.models?.availableModels ?? [];
+
+  if (availableModels.length > 0) {
+    const picked = await vscode.window.showQuickPick([
+      ...availableModels.map((model) => ({
+        label: model.name,
+        description: model.modelId,
+        detail: typeof model.description === 'string' ? model.description : undefined,
+        modelId: model.modelId,
+      })),
+      {
+        label: 'Enter model ID manually',
+        description: 'Use a custom model identifier',
+        modelId: '__manual__',
+      },
+    ], {
+      placeHolder: 'Select an agent model',
+      title: 'Set Agent Model',
+    });
+
+    if (!picked) {
+      return undefined;
+    }
+    if (picked.modelId !== '__manual__') {
+      return picked.modelId;
+    }
+  }
+
+  return vscode.window.showInputBox({
+    placeHolder: 'Enter model ID',
+    title: 'Set Agent Model',
+  }) || undefined;
 }

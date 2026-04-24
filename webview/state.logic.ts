@@ -239,6 +239,10 @@ function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState
     fallbackTitle: existing?.title ?? 'Tool Call',
     fallbackDetail: existing?.detail,
   });
+
+  const input = update.rawInput ? stringifyAny(update.rawInput) : undefined;
+  const output = update.rawOutput ? stringifyAny(update.rawOutput) : undefined;
+
   const item: ActivityItem = {
     order: existing?.order ?? nextOrder(segmentedState),
     kind: 'toolCall',
@@ -246,6 +250,8 @@ function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState
     title: presentation.title,
     status: normalizeToolStatus(update.status, existing?.status ?? 'pending'),
     detail: presentation.detail,
+    input: input ?? existing?.input,
+    output: output ?? existing?.output,
   };
 
   return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
@@ -260,6 +266,11 @@ function updateToolCall(state: WebviewState, update: StringRecord): WebviewState
     fallbackTitle: existing?.title ?? 'Tool Call',
     fallbackDetail: existing?.detail,
   });
+
+  const input = update.rawInput ? stringifyAny(update.rawInput) : undefined;
+  const output = update.rawOutput ? stringifyAny(update.rawOutput) : undefined;
+  const error = update.error ? stringifyAny(update.error) : undefined;
+
   const item: ActivityItem = {
     order: existing?.order ?? nextOrder(segmentedState),
     kind: 'toolCall',
@@ -267,9 +278,22 @@ function updateToolCall(state: WebviewState, update: StringRecord): WebviewState
     title: presentation.title,
     status: normalizeToolStatus(update.status, existing?.status ?? 'completed'),
     detail: presentation.detail,
+    input: input ?? existing?.input,
+    output: error ?? output ?? existing?.output,
   };
 
   return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
+}
+
+function stringifyAny(val: unknown): string {
+  if (typeof val === 'string') {
+    return val;
+  }
+  try {
+    return JSON.stringify(val, null, 2);
+  } catch {
+    return String(val);
+  }
 }
 
 function upsertPlan(state: WebviewState, update: StringRecord): WebviewState {

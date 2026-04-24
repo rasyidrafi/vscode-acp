@@ -261,22 +261,129 @@ function ThoughtRow(
   );
 }
 
+function getToolIcon(toolName: string): ReactElement {
+  const tool = toolName.toLowerCase();
+  // Simplified paths for 16x16 viewbox
+  if (tool.includes('edit') || tool.includes('patch') || tool.includes('replace')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M13.23 1h-1.46L3.52 9.25l-.16.22L1 13.59V15h1.41l4.12-2.36.22-.16L15 4.23V2.77L13.23 1zM2 14v-.69l2.12-1.21 1.21 2.12L2 14.91V14zM6.04 13.5l-1.41-1.41L11.77 5 13.18 6.41 6.04 13.5zM14 5.01L12.59 6.42 11.18 5 12.59 3.59 14 5.01z" />
+      </svg>
+    );
+  }
+  if (tool.includes('write') || tool.includes('create')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M13 0H3L2 1v14l1 1h10l1-1V1l-1-1zm0 15H3V1h10v14zM4 4h8v1H4V4zm0 3h8v1H4V7zm0 3h8v1H4v-1z" />
+      </svg>
+    );
+  }
+  if (tool.includes('read') || tool.includes('view') || tool.includes('cat')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M13.5 1h-11l-.5.5v13l.5.5h11l.5-.5v-13l-.5-.5zM13 14H3V2h10v12zM4 4h8v1H4V4zm0 3h8v1H4V7zm0 3h5v1H4v-1z" />
+      </svg>
+    );
+  }
+  if (tool.includes('bash') || tool.includes('shell') || tool.includes('cmd') || tool.includes('terminal')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M0 2l1-1h14l1 1v12l-1 1H1l-1-1V2zm1 1v11h14V3H1zm2.5 2.1l.7-.7 3.1 3.1L4.2 10.6l-.7-.7 2.4-2.4-2.4-2.4zM7 9h5v1H7V9z" />
+      </svg>
+    );
+  }
+  if (tool.includes('list') || tool.includes('ls')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M14.5 3H7.71l-2-2H1.5l-.5.5v12l.5.5h13l.5-.5v-10l-.5-.5zm-.5 10H2V2h3.79l2 2H14v9z" />
+      </svg>
+    );
+  }
+  if (tool.includes('search') || tool.includes('grep') || tool.includes('find') || tool.includes('glob')) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M11.87 10.81l4.08 4.08-.71.71-4.08-4.08a6.5 6.5 0 1 1 .71-.71zM6.5 12A5.5 5.5 0 1 0 1 6.5 5.506 5.506 0 0 0 6.5 12z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M14.2 9l-.1-1.3-.2-.5h.1l.1-.3-.6-1.1-.3.1h-.1l-.4-.3-.4-.8-.1-.1h.1l-.1-.3-.6-1-.3.1h-.1l-.5-.2-.9-.1H10l-.1-.1-.3-.1-.6-1-.3.1-.1.1-.5-.1h-.1l-.5.1-.3 1-.6 1-.3-.1-.1.1-.2.1-.9.1h-.1l-.5.2-.1-.1-.3-.1-.6 1-.1.3h.1l-.1.1-.4.8-.4.3h-.1l-.3-.1-.6 1.1.1.3h.1l-.2.5-.1 1.3h.1l.1.3-.1 1-.3.1-.1.3.6 1.1.3-.1h.1l.4.3.4.8h-.1l.1.3.6 1 .3-.1h.1l.5.2.9.1.1.1.1.1.3.1.6 1 .3-.1.1-.1.5.1h.1l.5-.1.3-1 .6-1 .3.1.1-.1.2-.1.9-.1h.1l.5-.2.1.1.3.1.6-1 .1-.3h-.1l.1-.1.4-.8.4-.3h.1l.3.1.6-1.1-.1-.3h-.1l.2-.5.1-.3zM8 10.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+    </svg>
+  );
+}
+
 function ToolCallRow(
   { item, showResponseDivider }: { item: ToolCallActivity; showResponseDivider: boolean },
 ): ReactElement {
+  const [isOpen, setIsOpen] = useState(false);
   const preview = item.detail && normalizeToolPreview(item.detail, item.title);
-  const text = preview ? `${item.title} - ${preview}` : item.title;
+  const title = item.title;
+  const hasContent = !!(item.input || item.output || item.detail);
+
+  function handleHeaderClick(): void {
+    if (hasContent) {
+      setIsOpen(!isOpen);
+    }
+  }
 
   return (
-    <article className={`chat-row tool-card ${item.status}`}>
+    <article className={`chat-row tool-row ${item.status}${hasContent ? ' has-content' : ''}`}>
       {showResponseDivider ? <ResponseDivider /> : null}
-      <div className="tool-row-heading">
-        <span className="tool-row-glyph" aria-hidden="true">
-          {'>_'}
-        </span>
-        <p title={text}>{text}</p>
+      <div
+        className="tool-row-header"
+        onClick={handleHeaderClick}
+        onKeyDown={(e) => e.key === 'Enter' && handleHeaderClick()}
+        role="button"
+        tabIndex={hasContent ? 0 : -1}
+      >
+        <div className="tool-row-header-left">
+          <div className="tool-row-visual">
+            <div className={`tool-row-icon-layer${isOpen ? ' hidden' : ''}`} aria-hidden="true">
+              {getToolIcon(title)}
+            </div>
+            <div className={`tool-row-chevron-layer${isOpen ? ' visible' : ''}`} aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }}>
+                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+          <span className="tool-row-title">{title}</span>
+        </div>
+        {!isOpen && preview && (
+          <span className="tool-row-preview" title={item.detail}>
+            {preview}
+          </span>
+        )}
       </div>
+      {isOpen && (
+        <div className="tool-row-content">
+          {item.input ? (
+            <ToolSection label="Input">
+              <pre>{item.input}</pre>
+            </ToolSection>
+          ) : null}
+          {item.output ? (
+            <ToolSection label="Output">
+              <pre>{item.output}</pre>
+            </ToolSection>
+          ) : item.detail ? (
+            <ToolSection label="Detail">
+              <pre>{item.detail}</pre>
+            </ToolSection>
+          ) : null}
+        </div>
+      )}
     </article>
+  );
+}
+
+function ToolSection({ label, children }: { label: string; children: ReactElement }): ReactElement {
+  return (
+    <div className="tool-section">
+      <div className="tool-section-label">{label}</div>
+      <div className="tool-section-body">{children}</div>
+    </div>
   );
 }
 

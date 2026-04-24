@@ -43,6 +43,8 @@ export interface ToolCallActivity extends OrderedTimelineItem {
   title: string;
   status: ToolCallStatus;
   detail?: string;
+  input?: string;
+  output?: string;
 }
 
 export interface ErrorActivity extends OrderedTimelineItem {

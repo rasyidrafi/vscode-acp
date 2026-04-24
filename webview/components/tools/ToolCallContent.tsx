@@ -22,16 +22,62 @@ export function ToolCallContent({ item }: ToolCallContentProps): ReactElement {
   const parsedOutput = parseMaybeJson(item.output);
   const renderer = inferToolRenderer(item, parsedInput);
 
+  return (
+    <div className="tool-content-wrapper">
+      <ToolMainContent
+        renderer={renderer}
+        item={item}
+        input={parsedInput}
+        output={parsedOutput}
+      />
+      {item.locations && item.locations.length > 0 && (
+        <LocationList locations={item.locations} />
+      )}
+      {item.status === 'running' && (
+        <div className="tool-running-indicator">
+          <span className="tool-running-spinner"></span>
+          Processing...
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToolMainContent(
+  { renderer, item, input, output }:
+  { renderer: ToolRendererKind; item: ToolCallActivity; input: unknown; output: unknown },
+): ReactElement {
   switch (renderer) {
     case 'bash':
-      return <BashToolContent item={item} input={parsedInput} output={parsedOutput} />;
+      return <BashToolContent item={item} input={input} output={output} />;
     case 'edit':
-      return <EditToolContent item={item} input={parsedInput} output={parsedOutput} />;
+      return <EditToolContent item={item} input={input} output={output} />;
     case 'search':
-      return <SearchToolContent item={item} input={parsedInput} output={parsedOutput} />;
+      return <SearchToolContent item={item} input={input} output={output} />;
+    case 'read':
+      return <ReadToolContent item={item} input={input} output={output} />;
     default:
       return <GenericToolContent item={item} />;
   }
+}
+
+function ReadToolContent(
+  { item, input, output }: { item: ToolCallActivity; input: unknown; output: unknown },
+): ReactElement {
+  const outputText = extractOutputText(output).trim();
+  const inputRecord = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const path = (inputRecord.path as string) || (inputRecord.filePath as string) || item.detail;
+
+  return (
+    <div className="tool-read-content">
+      {path && <div className="tool-read-path">{path}</div>}
+      {outputText ? (
+        <pre className="tool-code-block"><code>{outputText}</code></pre>
+      ) : item.status === 'completed' ? (
+        <div className="tool-empty-note">File is empty</div>
+      ) : null}
+    </div>
+  );
 }
 
 function BashToolContent(
@@ -51,9 +97,39 @@ function BashToolContent(
         ) : null}
         {outputText ? (
           <pre className="tool-terminal-output">{outputText}</pre>
-        ) : (
+        ) : item.status === 'completed' ? (
           <div className="tool-empty-note">No command output</div>
-        )}
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function LocationList({ locations }: { locations: Array<{ path: string }> }): ReactElement {
+  if (locations.length === 0) {
+    return <></>;
+  }
+
+  return (
+    <div className="tool-locations-section">
+      <div className="tool-section-label">
+        {locations.length === 1 ? 'Location' : `${locations.length} Locations`}
+      </div>
+      <div className="tool-search-results-container" style={{ maxHeight: '160px' }}>
+        <div className="tool-search-files">
+          {locations.map((loc, idx) => (
+            <button
+              key={`${loc.path}-${idx}`}
+              type="button"
+              className="tool-search-file"
+              onClick={() => {
+                void navigator.clipboard?.writeText(loc.path);
+              }}
+            >
+              {loc.path}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

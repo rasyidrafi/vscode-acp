@@ -1,6 +1,6 @@
 import type { ToolCallActivity } from '../../../src/shared/chatModel';
 
-export type ToolRendererKind = 'bash' | 'edit' | 'search' | 'generic';
+export type ToolRendererKind = 'bash' | 'edit' | 'search' | 'read' | 'generic';
 
 export interface DiffPart {
   text: string;
@@ -54,6 +54,20 @@ export function parseMaybeJson(raw?: string): unknown {
 }
 
 export function inferToolRenderer(item: ToolCallActivity, parsedInput: unknown): ToolRendererKind {
+  // 1. Prioritize explicit toolKind from protocol
+  if (item.toolKind === 'read') {
+    return 'read';
+  }
+  if (item.toolKind === 'execute') {
+    return 'bash';
+  }
+  if (item.toolKind === 'edit') {
+    return 'edit';
+  }
+  if (item.toolKind === 'search') {
+    return 'search';
+  }
+
   const title = item.title.toLowerCase();
   const input = asRecord(parsedInput);
 
@@ -65,6 +79,15 @@ export function inferToolRenderer(item: ToolCallActivity, parsedInput: unknown):
     hasAnyString(input, ['command', 'cmd', 'executable', 'program'])
   ) {
     return 'bash';
+  }
+
+  if (
+    title.includes('read') ||
+    title.includes('view') ||
+    title.includes('get') ||
+    title.includes('open')
+  ) {
+    return 'read';
   }
 
   if (

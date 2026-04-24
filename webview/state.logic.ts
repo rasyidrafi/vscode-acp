@@ -253,6 +253,8 @@ function upsertToolCall(
     detail: presentation.detail,
     input: input ?? existing?.input,
     output: output ?? existing?.output,
+    toolKind: update.kind ?? existing?.toolKind,
+    locations: update.locations?.map((loc) => ({ path: loc.path })) ?? existing?.locations,
   };
 
   return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
@@ -284,6 +286,8 @@ function updateToolCall(
     detail: presentation.detail,
     input: input ?? existing?.input,
     output: error ?? output ?? existing?.output,
+    toolKind: update.kind ?? existing?.toolKind,
+    locations: update.locations?.map((loc) => ({ path: loc.path })) ?? existing?.locations,
   };
 
   return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);

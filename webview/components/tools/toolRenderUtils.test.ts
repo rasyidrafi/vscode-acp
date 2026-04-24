@@ -17,6 +17,16 @@ describe('toolRenderUtils', () => {
     expect(inferToolRenderer(toolCall('Tool Call'), { pattern: 'SessionManager' })).toBe('search');
   });
 
+  it('prioritizes explicit toolKind from activity', () => {
+    const activity = { ...toolCall('Generic Title'), toolKind: 'read' };
+    expect(inferToolRenderer(activity, {})).toBe('read');
+  });
+
+  it('infers read renderer from read-like title', () => {
+    expect(inferToolRenderer(toolCall('Read file'), undefined)).toBe('read');
+    expect(inferToolRenderer(toolCall('Viewing source'), undefined)).toBe('read');
+  });
+
   it('highlights changed words while preserving common text', () => {
     const { oldParts, newParts } = diffWords('const value = one;', 'const value = two;');
     expect(oldParts.some((part) => part.changed && part.text.includes('one;'))).toBe(true);

@@ -45,6 +45,8 @@ export interface ToolCallActivity extends OrderedTimelineItem {
   detail?: string;
   input?: string;
   output?: string;
+  toolKind?: string;
+  locations?: Array<{ path: string }>;
 }
 
 export interface ErrorActivity extends OrderedTimelineItem {

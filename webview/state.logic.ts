@@ -691,7 +691,7 @@ function extractPrimaryPath(
 ): string | undefined {
   const paths: string[] = [];
   collectPaths(update, paths, new Set<string>(), 0);
-  return paths[0];
+  return paths[paths.length - 1];
 }
 
 function collectPaths(
@@ -761,6 +761,11 @@ function summarizeToolOutput(
   const detailText = getToolDetail(update);
   if (detailText) {
     return summarizeText(detailText);
+  }
+
+  const title = firstString(update.title);
+  if (title) {
+    return title;
   }
 
   const path = extractPrimaryPath(update);

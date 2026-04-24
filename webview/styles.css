@@ -788,7 +788,7 @@ body.vscode-dark .message-copy-tooltip {
 .tool-read-path {
   font-family: var(--vscode-editor-font-family);
   font-size: 0.85em;
-  color: var(--vscode-textLink-foreground);
+  color: var(--vscode-foreground);
   font-weight: 500;
   padding: 2px 4px;
 }
@@ -1589,7 +1589,7 @@ body.vscode-dark .message-copy-tooltip {
 
 .tool-row-detail {
   font-size: 0.82em;
-  color: var(--vscode-textLink-foreground);
+  color: var(--vscode-foreground);
   margin-top: 4px;
   margin-bottom: 8px;
   white-space: pre-wrap;
@@ -1613,7 +1613,7 @@ body.vscode-dark .message-copy-tooltip {
 }
 
 .tool-read-summary {
-  color: var(--vscode-textLink-foreground);
+  color: var(--vscode-foreground);
   margin-bottom: 0;
   font-size: 0.9em;
   font-weight: 500;
@@ -1625,8 +1625,4 @@ body.vscode-dark .message-copy-tooltip {
   color: var(--vscode-foreground);
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-.tool-read-detail {
-  color: var(--vscode-textLink-foreground);
 }

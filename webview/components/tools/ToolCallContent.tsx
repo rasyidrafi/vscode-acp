@@ -61,8 +61,7 @@ function ToolMainContent(
 function ReadToolContent(
   { item }: { item: ToolCallActivity },
 ): ReactElement | null {
-  const isRedundant = item.locations?.some((loc) => loc.path === item.detail);
-  if (isRedundant || !item.detail) {
+  if (!item.detail) {
     return null;
   }
 

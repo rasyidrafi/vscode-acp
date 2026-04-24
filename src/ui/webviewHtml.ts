@@ -26,7 +26,7 @@ export function getChatWebviewHtml(options: ChatWebviewHtmlOptions): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${options.webview.cspSource} https: data:; style-src ${options.webview.cspSource}; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${options.webview.cspSource} https: data:; style-src ${options.webview.cspSource}; font-src ${options.webview.cspSource}; script-src 'nonce-${nonce}';">
   <title>ACP Chat</title>
   <link rel="stylesheet" href="${stylesUri}">
 </head>
@@ -43,7 +43,7 @@ function getDevServerHtml(webview: vscode.Webview, devServerUrl: string, nonce: 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${devServerUrl}; img-src ${webview.cspSource} ${devServerUrl} https: data:; style-src ${webview.cspSource} ${devServerUrl} 'unsafe-inline'; script-src 'nonce-${nonce}' ${devServerUrl};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${devServerUrl}; img-src ${webview.cspSource} ${devServerUrl} https: data:; style-src ${webview.cspSource} ${devServerUrl} 'unsafe-inline'; font-src ${webview.cspSource} ${devServerUrl}; script-src 'nonce-${nonce}' ${devServerUrl};">
   <title>ACP Chat</title>
 </head>
 <body>

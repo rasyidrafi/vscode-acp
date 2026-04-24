@@ -365,6 +365,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
+    "@vscode/codicons": "^0.0.45",
     "@vscode/extension-telemetry": "^1.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -372,14 +373,14 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.7.1",

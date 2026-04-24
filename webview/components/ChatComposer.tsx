@@ -152,7 +152,7 @@ export function ChatComposer({
                   aria-label={`Remove ${file.name}`}
                   onClick={() => onRemoveAttachment(file.path)}
                 >
-                  x
+                  <i className="codicon codicon-close" style={{ fontSize: '10px' }}></i>
                 </button>
               </span>
             ))}
@@ -179,9 +179,7 @@ export function ChatComposer({
               title="Attach file"
               onClick={onAttachFile}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <i className="codicon codicon-add" style={{ fontSize: '16px' }}></i>
             </button>
             {availableCommands.length > 0 ? <span className="composer-hint">/ commands</span> : null}
           </div>
@@ -194,14 +192,9 @@ export function ChatComposer({
             title={sendState.isCancel ? 'Stop' : 'Send'}
           >
             {sendState.isCancel ? (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
-              </svg>
+              <i className="codicon codicon-debug-stop" style={{ fontSize: '14px' }}></i>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M8 12V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                <path d="M4.8 6.1L8 2.9l3.2 3.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <i className="codicon codicon-arrow-up" style={{ fontSize: '14px' }}></i>
             )}
           </button>
         </div>

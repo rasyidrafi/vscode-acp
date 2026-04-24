@@ -190,9 +190,7 @@ function SessionSelect({
         }}
       >
         <span className="select-value">{currentOption?.label || value}</span>
-        <svg className="select-chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M7.976 10.072l4.357-4.357.62.618L8.285 11h-.618L3 6.333l.619-.618 4.357 4.357z"/>
-        </svg>
+        <i className="codicon codicon-chevron-down select-chevron" style={{ fontSize: '12px' }}></i>
       </button>
       {isOpen ? (
         <div
@@ -253,33 +251,13 @@ function getModeOptionIcon(label: string, id: string): (() => ReactElement) | nu
 }
 
 function LockIcon(): ReactElement {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M5.5 7V5.75a2.5 2.5 0 0 1 5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <rect x="3.5" y="7" width="9" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
+  return <i className="codicon codicon-lock" style={{ fontSize: '14px' }}></i>;
 }
 
 function UnlockIcon(): ReactElement {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M9.5 5.75a2.5 2.5 0 0 0-4.93-.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <rect x="3.5" y="7" width="9" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
+  return <i className="codicon codicon-unlock" style={{ fontSize: '14px' }}></i>;
 }
 
 function PencilIcon(): ReactElement {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M10.9 2.8a1.6 1.6 0 1 1 2.3 2.3L6 12.3 3 13l.7-3 7.2-7.2Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <i className="codicon codicon-edit" style={{ fontSize: '14px' }}></i>;
 }

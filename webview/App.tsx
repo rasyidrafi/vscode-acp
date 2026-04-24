@@ -72,12 +72,9 @@ export function App(): ReactElement {
                   className="empty-connect-button"
                   onClick={() => postToExtension({ type: 'executeCommand', command: 'acp.connectAgent' })}
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                  </svg>
+                  <i className="codicon codicon-plug" style={{ fontSize: '16px', marginRight: '8px' }}></i>
                   <span>Connect Agent</span>
-                </button>
-              </div>
+                </button>              </div>
             ) : null}
           </div>
         ) : (
@@ -104,7 +101,7 @@ export function App(): ReactElement {
               postToExtension({ type: 'clearError' });
             }}
           >
-            x
+            <i className="codicon codicon-close" style={{ fontSize: '14px' }}></i>
           </button>
         </div>
       ) : null}

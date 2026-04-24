@@ -771,22 +771,26 @@ body.vscode-dark .message-copy-tooltip {
 
 .tool-section-body pre {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: color-mix(in srgb, var(--vscode-editor-foreground) 85%, transparent);
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.95em;
-  line-height: 1.5;
 }
 
 .tool-code-block {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: color-mix(in srgb, var(--vscode-editor-foreground) 85%, transparent);
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--acp-border);
+  border-radius: 7px;
+  background: var(--vscode-textCodeBlock-background);
+  white-space: pre;
+}
+
+.tool-code-block code {
+  display: block;
+  color: color-mix(in srgb, var(--vscode-editor-foreground) 92%, transparent);
   font-family: var(--vscode-editor-font-family);
-  font-size: 0.95em;
+  font-size: 0.9em;
   line-height: 1.5;
+  tab-size: 2;
 }
 
 .tool-empty-note {

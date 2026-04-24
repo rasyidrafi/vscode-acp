@@ -210,12 +210,12 @@ function GenericToolContent({ item }: { item: ToolCallActivity }): ReactElement 
     <>
       {item.input ? (
         <ToolSection label="Input">
-          <pre className="tool-code-block">{stringifyUnknown(parseMaybeJson(item.input))}</pre>
+          <pre className="tool-code-block"><code>{stringifyUnknown(parseMaybeJson(item.input))}</code></pre>
         </ToolSection>
       ) : null}
       {item.output ? (
         <ToolSection label="Output">
-          <pre className="tool-code-block">{stringifyUnknown(parseMaybeJson(item.output))}</pre>
+          <pre className="tool-code-block"><code>{stringifyUnknown(parseMaybeJson(item.output))}</code></pre>
         </ToolSection>
       ) : item.detail ? (
         <div className="thought-content" style={{ padding: '0 0 8px 0' }}>{item.detail}</div>

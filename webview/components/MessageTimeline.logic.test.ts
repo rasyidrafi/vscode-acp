@@ -91,27 +91,40 @@ describe('deriveTimelineRows', () => {
       ]);
   });
 
-  it('only shows assistant meta for the absolute last message when turn is finished', () => {
+  it('shows assistant meta when it is the last item in its response block', () => {
     const user = userMessage('user-1');
     const assistant = { ...assistantMessage('assistant-1'), order: 2 };
-    const t = { ...thought('thought-1'), order: 3 };
+    const thought1 = { ...thought('thought-1'), order: 3 };
+    const user2 = { ...userMessage('user-2'), order: 4 };
 
-    // Assistant message followed by thought - should NOT show meta
-    const rowsWithThought = deriveTimelineRows([user, assistant], [t], { turnInProgress: false });
+    // Case 1: Assistant message followed by assistant thought - should NOT show meta
+    const rowsWithThought = deriveTimelineRows([user, assistant], [thought1], { turnInProgress: false });
     expect(rowsWithThought.find(r => r.id === 'assistant-1')).toMatchObject({
       showAssistantMeta: false
     });
 
-    // Assistant message is last but turn in progress - should NOT show meta
-    const rowsInProgress = deriveTimelineRows([user, assistant], [], { turnInProgress: true });
-    expect(rowsInProgress.find(r => r.id === 'assistant-1')).toMatchObject({
-      showAssistantMeta: false
+    // Case 2: Assistant message followed by user message - SHOULD show meta
+    // (assistant message order 2, user message order 4, but user is next item in messages array)
+    // Actually, in mergedItems, if assistant is order 2 and user2 is order 4, 
+    // but thought1 is order 3, then thought1 still follows assistant.
+    // Let's make user2 order 2.5 to be sure it follows assistant immediately.
+    const user2Follows = { ...userMessage('user-2'), order: 2.5 };
+    const rowsFollowedByUser = deriveTimelineRows([user, assistant, user2Follows], [thought1], { turnInProgress: false });
+    expect(rowsFollowedByUser.find(r => r.id === 'assistant-1')).toMatchObject({
+      showAssistantMeta: true
     });
 
-    // Assistant message is last and turn NOT in progress - SHOULD show meta
-    const rowsFinished = deriveTimelineRows([user, assistant], [], { turnInProgress: false });
-    expect(rowsFinished.find(r => r.id === 'assistant-1')).toMatchObject({
+    // Case 3: Assistant message is last (even if turn in progress) - SHOULD show meta
+    const rowsInProgress = deriveTimelineRows([user, assistant], [], { turnInProgress: true });
+    expect(rowsInProgress.find(r => r.id === 'assistant-1')).toMatchObject({
       showAssistantMeta: true
+    });
+
+    // Case 4: Assistant message followed by another assistant message - should NOT show meta
+    const assistant2 = { ...assistantMessage('assistant-2'), order: 2.5 };
+    const rowsFollowedByAssistant = deriveTimelineRows([user, assistant, assistant2], [], { turnInProgress: false });
+    expect(rowsFollowedByAssistant.find(r => r.id === 'assistant-1')).toMatchObject({
+      showAssistantMeta: false
     });
   });
 });

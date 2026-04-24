@@ -44,12 +44,16 @@ function buildRows(
           break;
         }
 
+        const currentIndex = mergedItems.indexOf(item);
+        const nextItem = mergedItems[currentIndex + 1];
+        const isFollowedByAssistantItem = nextItem && (nextItem.kind !== 'message' || nextItem.role === 'assistant');
+
         rows.push({
           kind: 'message',
           id: item.id,
           item,
           showResponseDivider: awaitingResponseStart,
-          showAssistantMeta: item.id === lastAssistantId && item.id === lastItemId && !turnInProgress,
+          showAssistantMeta: item.role === 'assistant' && !isFollowedByAssistantItem,
         });
         awaitingResponseStart = false;
         break;

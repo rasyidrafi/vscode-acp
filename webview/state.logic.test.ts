@@ -55,6 +55,37 @@ describe('webview state reducer', () => {
     });
   });
 
+  it('splits assistant messages when tool activity appears between chunks', () => {
+    const base = withSession();
+    const first = reduceWebviewState(base, sessionUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'First response' },
+    }));
+    const withTool = reduceWebviewState(first, sessionUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'cmd-1',
+      title: 'Terminal',
+      status: 'completed',
+      rawInput: {
+        command: ['pwd'],
+      },
+    }));
+    const second = reduceWebviewState(withTool, sessionUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Second response' },
+    }));
+
+    expect(second.messages).toHaveLength(2);
+    expect(second.messages[0]).toMatchObject({
+      text: 'First response',
+      streaming: false,
+    });
+    expect(second.messages[1]).toMatchObject({
+      text: 'Second response',
+      streaming: true,
+    });
+  });
+
   it('normalizes thought chunks and finalizes streaming on prompt end', () => {
     const thinking = reduceWebviewState(withSession(), sessionUpdate({
       sessionUpdate: 'agent_thought_chunk',
@@ -68,6 +99,36 @@ describe('webview state reducer', () => {
       text: 'Inspecting files',
       streaming: false,
       collapsed: true,
+    });
+  });
+
+  it('splits thought segments when assistant text resumes', () => {
+    const base = withSession();
+    const thinking = reduceWebviewState(base, sessionUpdate({
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: 'Inspecting files' },
+    }));
+    const withMessage = reduceWebviewState(thinking, sessionUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Found it' },
+    }));
+    const thinkingAgain = reduceWebviewState(withMessage, sessionUpdate({
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: 'Double-checking' },
+    }));
+
+    expect(thinkingAgain.activities).toHaveLength(2);
+    expect(thinkingAgain.activities[0]).toMatchObject({
+      kind: 'thought',
+      text: 'Inspecting files',
+      streaming: false,
+      collapsed: true,
+    });
+    expect(thinkingAgain.activities[1]).toMatchObject({
+      kind: 'thought',
+      text: 'Double-checking',
+      streaming: true,
+      collapsed: false,
     });
   });
 

@@ -162,6 +162,7 @@ function addUserPrompt(state: WebviewState, text: string): WebviewState {
     id: nextId(state, 'user'),
     role: 'user',
     text: trimmed,
+    createdAt: new Date().toISOString(),
   }, {
     error: null,
     turnInProgress: true,
@@ -180,41 +181,44 @@ function appendTextChunk(
   }
 
   if (target === 'message') {
-    const id = state.currentAssistantMessageId ?? nextId(state, 'assistant');
-    const existing = findMessage(state.messages, id);
+    const segmentedState = clearCurrentThoughtSegment(state);
+    const id = segmentedState.currentAssistantMessageId ?? nextId(segmentedState, 'assistant');
+    const existing = findMessage(segmentedState.messages, id);
     if (existing) {
-      return replaceMessage(state, id, {
+      return replaceMessage(segmentedState, id, {
         ...existing,
         text: existing.text + text,
         streaming: true,
       });
     }
 
-    return appendMessage(state, {
-      order: nextOrder(state),
+    return appendMessage(segmentedState, {
+      order: nextOrder(segmentedState),
       kind: 'message',
       id,
       role: 'assistant',
       text,
+      createdAt: new Date().toISOString(),
       streaming: true,
     }, {
       currentAssistantMessageId: id,
-      currentThoughtId: state.currentThoughtId,
+      currentThoughtId: null,
     });
   }
 
-  const id = state.currentThoughtId ?? nextId(state, 'thought');
-  const existing = findActivity(state.activities, id, 'thought');
+  const segmentedState = closeCurrentAssistantMessageSegment(state);
+  const id = segmentedState.currentThoughtId ?? nextId(segmentedState, 'thought');
+  const existing = findActivity(segmentedState.activities, id, 'thought');
   if (existing) {
-    return replaceActivity(state, id, {
+    return replaceActivity(segmentedState, id, {
       ...existing,
       text: existing.text + text,
       streaming: true,
     });
   }
 
-  return appendActivity(state, {
-    order: nextOrder(state),
+  return appendActivity(segmentedState, {
+    order: nextOrder(segmentedState),
     kind: 'thought',
     id,
     text,
@@ -226,16 +230,17 @@ function appendTextChunk(
 }
 
 function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState {
+  const segmentedState = clearCurrentThoughtSegment(closeCurrentAssistantMessageSegment(state));
   const id = typeof update.toolCallId === 'string' && update.toolCallId
     ? `tool-${update.toolCallId}`
-    : nextId(state, 'tool');
-  const existing = findActivity(state.activities, id, 'toolCall');
+    : nextId(segmentedState, 'tool');
+  const existing = findActivity(segmentedState.activities, id, 'toolCall');
   const presentation = deriveToolCallPresentation(update, {
     fallbackTitle: existing?.title ?? 'Tool Call',
     fallbackDetail: existing?.detail,
   });
   const item: ActivityItem = {
-    order: existing?.order ?? nextOrder(state),
+    order: existing?.order ?? nextOrder(segmentedState),
     kind: 'toolCall',
     id,
     title: presentation.title,
@@ -243,19 +248,20 @@ function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState
     detail: presentation.detail,
   };
 
-  return existing ? replaceActivity(state, id, item) : appendActivity(state, item);
+  return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
 }
 
 function updateToolCall(state: WebviewState, update: StringRecord): WebviewState {
+  const segmentedState = clearCurrentThoughtSegment(closeCurrentAssistantMessageSegment(state));
   const rawId = typeof update.toolCallId === 'string' && update.toolCallId ? update.toolCallId : 'unknown';
   const id = `tool-${rawId}`;
-  const existing = findActivity(state.activities, id, 'toolCall');
+  const existing = findActivity(segmentedState.activities, id, 'toolCall');
   const presentation = deriveToolCallPresentation(update, {
     fallbackTitle: existing?.title ?? 'Tool Call',
     fallbackDetail: existing?.detail,
   });
   const item: ActivityItem = {
-    order: existing?.order ?? nextOrder(state),
+    order: existing?.order ?? nextOrder(segmentedState),
     kind: 'toolCall',
     id,
     title: presentation.title,
@@ -263,7 +269,7 @@ function updateToolCall(state: WebviewState, update: StringRecord): WebviewState
     detail: presentation.detail,
   };
 
-  return existing ? replaceActivity(state, id, item) : appendActivity(state, item);
+  return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
 }
 
 function upsertPlan(state: WebviewState, update: StringRecord): WebviewState {
@@ -364,6 +370,54 @@ function appendActivity(
     activities: [...state.activities, item],
     nextOrder: state.nextOrder + 1,
     nextItemId: state.nextItemId + 1,
+  };
+}
+
+function closeCurrentAssistantMessageSegment(state: WebviewState): WebviewState {
+  if (!state.currentAssistantMessageId) {
+    return state;
+  }
+
+  const current = findMessage(state.messages, state.currentAssistantMessageId);
+  if (!current) {
+    return {
+      ...state,
+      currentAssistantMessageId: null,
+    };
+  }
+
+  return {
+    ...state,
+    currentAssistantMessageId: null,
+    messages: state.messages.map((item) => (
+      item.id === current.id && item.streaming
+        ? { ...item, streaming: false }
+        : item
+    )),
+  };
+}
+
+function clearCurrentThoughtSegment(state: WebviewState): WebviewState {
+  if (!state.currentThoughtId) {
+    return state;
+  }
+
+  const current = findActivity(state.activities, state.currentThoughtId, 'thought');
+  if (!current) {
+    return {
+      ...state,
+      currentThoughtId: null,
+    };
+  }
+
+  return {
+    ...state,
+    currentThoughtId: null,
+    activities: state.activities.map((item) => (
+      item.id === current.id && item.kind === 'thought' && item.streaming
+        ? { ...item, streaming: false, collapsed: true }
+        : item
+    )),
   };
 }
 

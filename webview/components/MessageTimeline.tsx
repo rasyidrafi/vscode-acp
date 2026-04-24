@@ -68,11 +68,19 @@ export function MessageTimeline({ messages, activities, turnInProgress }: Messag
 function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
   switch (row.kind) {
     case 'message':
-      return <MessageRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
-    case 'work':
-      return <WorkRow items={row.items} />;
+      return (
+        <MessageRow
+          item={row.item}
+          showResponseDivider={row.showResponseDivider === true}
+          showAssistantMeta={row.showAssistantMeta === true}
+        />
+      );
+    case 'thought':
+      return <ThoughtRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
+    case 'tool':
+      return <ToolCallRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
     case 'error':
-      return <ErrorRow item={row.item} />;
+      return <ErrorRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
     case 'working':
       return (
         <article className="chat-row working-row" aria-label="Agent is working">
@@ -84,140 +92,194 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
 }
 
 function MessageRow(
-  { item, showResponseDivider }: { item: ConversationMessage; showResponseDivider: boolean },
+  {
+    item,
+    showResponseDivider,
+    showAssistantMeta,
+  }: { item: ConversationMessage; showResponseDivider: boolean; showAssistantMeta: boolean },
 ): ReactElement {
-  const [copied, setCopied] = useState(false);
-  const canCopy = item.role === 'assistant' && !item.streaming && item.text.trim().length > 0;
+  const canCopy = showAssistantMeta && !item.streaming && item.text.trim().length > 0;
   const renderedText = item.role === 'assistant' && !item.streaming && item.text.trim().length === 0
     ? '(empty response)'
     : item.text;
-
-  async function copyMessage(): Promise<void> {
-    if (!canCopy || !navigator.clipboard) {
-      return;
-    }
-    await navigator.clipboard.writeText(item.text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
-  }
+  const timestamp = showAssistantMeta ? formatMessageTime(item.createdAt) : null;
 
   return (
     <article className={`chat-row message-row ${item.role}`}>
-      {item.role === 'assistant' && showResponseDivider ? (
-        <div className="response-divider" aria-hidden="true">
-          <span />
-          <small>Response</small>
-          <span />
-        </div>
-      ) : null}
+      {showResponseDivider ? <ResponseDivider /> : null}
       <div className="message-content">
-        {item.role === 'assistant' ? <div className="message-eyebrow">Assistant</div> : <div className="message-eyebrow">You</div>}
         {item.role === 'assistant' ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
+          <>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
+            {showAssistantMeta ? (
+              <div className="message-meta assistant-meta">
+                {timestamp ? <span>{timestamp}</span> : null}
+                {canCopy ? <MessageCopyButton text={item.text} /> : null}
+              </div>
+            ) : null}
+          </>
         ) : (
           <p>{renderedText}</p>
         )}
         {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
       </div>
-      {canCopy ? (
-        <button
-          type="button"
-          className="copy-button"
-          title={copied ? 'Copied' : 'Copy message'}
-          aria-label={copied ? 'Copied message' : 'Copy assistant message'}
-          onClick={copyMessage}
-        >
-          {copied ? 'OK' : 'Copy'}
-        </button>
-      ) : null}
     </article>
   );
 }
 
-function WorkRow({ items }: { items: Array<ThoughtActivity | ToolCallActivity> }): ReactElement {
-  const [expanded, setExpanded] = useState(false);
-  const hasOverflow = items.length > 6;
-  const visibleItems = hasOverflow && !expanded ? items.slice(-6) : items;
-  const hiddenCount = items.length - visibleItems.length;
-  const summary = summarizeWorkItems(items);
-
+function ResponseDivider(): ReactElement {
   return (
-    <section className="chat-row work-row" aria-label="Agent work">
-      <div className="work-row-header">
-        <div>
-          <strong>Work Log</strong>
-          <span>{items.length} event{items.length === 1 ? '' : 's'}</span>
-        </div>
-        {hasOverflow ? (
-          <button type="button" className="work-toggle-button" onClick={() => setExpanded((value) => !value)}>
-            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
-          </button>
-        ) : null}
-      </div>
-      {summary ? <p className="work-row-summary">{summary}</p> : null}
-      <div className="work-row-list">
-        {visibleItems.map((item) => (
-          item.kind === 'thought' ? <ThoughtRow key={item.id} item={item} /> : <ToolCallRow key={item.id} item={item} />
-        ))}
-      </div>
-    </section>
+    <div className="response-divider" aria-hidden="true">
+      <span />
+      <small>Response</small>
+      <span />
+    </div>
   );
 }
 
-function ThoughtRow({ item }: { item: ThoughtActivity }): ReactElement {
+function MessageCopyButton({ text }: { text: string }): ReactElement {
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  async function copyMessage(): Promise<void> {
+    if (!navigator.clipboard || copied) {
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    setCopied(true);
+    timeoutRef.current = window.setTimeout(() => {
+      setCopied(false);
+      timeoutRef.current = null;
+    }, 1000);
+  }
+
   return (
-    <details className="work-item thought-row" open={!item.collapsed}>
-      <summary>
-        <span className="work-item-icon thinking" aria-hidden="true" />
-        <span>{item.streaming ? 'Thinking' : 'Thought'}</span>
-      </summary>
-      <p>{item.text}</p>
-    </details>
+    <span className="message-copy-wrap">
+      <button
+        type="button"
+        className={`message-inline-copy${copied ? ' copied' : ''}`}
+        aria-label={copied ? 'Copied!' : 'Copy to clipboard'}
+        onClick={copyMessage}
+        disabled={copied}
+      >
+        {copied ? (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M3.5 8.25 6.2 11l6.3-6.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="5" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="3" y="5" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        )}
+      </button>
+      <span className={`message-copy-tooltip${copied ? ' copied' : ''}`}>
+        {copied ? 'Copied!' : 'Copy to clipboard'}
+      </span>
+    </span>
   );
 }
 
-function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
-  const statusLabel = item.status === 'running'
-    ? 'Running'
-    : item.status === 'completed'
-      ? 'Completed'
-      : item.status === 'failed'
-        ? 'Failed'
-        : 'Pending';
+function ThoughtRow(
+  { item, showResponseDivider }: { item: ThoughtActivity; showResponseDivider: boolean },
+): ReactElement {
+  const text = item.text.trim() || (item.streaming ? 'Thinking' : 'Thought');
+
   return (
-    <article className={`work-item tool-row ${item.status}`}>
+    <article className="chat-row thought-card">
+      {showResponseDivider ? <ResponseDivider /> : null}
+      <details className="thought-panel" open={!item.collapsed}>
+        <summary>
+          <span className="thought-row-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <rect x="3.5" y="4" width="9" height="6.5" rx="2.2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M6 10.5v1.5M10 10.5v1.5M6.2 6.7h.01M9.8 6.7h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M6 2.8 5.4 4M10 2.8l.6 1.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span>{item.streaming ? 'Thinking' : 'Thought'}</span>
+        </summary>
+        <div className="thought-body">{text}</div>
+      </details>
+    </article>
+  );
+}
+
+function ToolCallRow(
+  { item, showResponseDivider }: { item: ToolCallActivity; showResponseDivider: boolean },
+): ReactElement {
+  const preview = item.detail && normalizeToolPreview(item.detail, item.title);
+  const text = preview ? `${item.title} - ${preview}` : item.title;
+
+  return (
+    <article className={`chat-row tool-card ${item.status}`}>
+      {showResponseDivider ? <ResponseDivider /> : null}
       <div className="tool-row-heading">
-        <span className={`work-item-icon ${item.status}`} aria-hidden="true" />
-        <strong>{item.title}</strong>
+        <span className="tool-row-glyph" aria-hidden="true">
+          {'>_'}
+        </span>
+        <p title={text}>{text}</p>
       </div>
-      <span>{statusLabel}</span>
-      {item.detail ? <p>{item.detail}</p> : null}
     </article>
   );
 }
 
-function ErrorRow({ item }: { item: ErrorActivity }): ReactElement {
+function ErrorRow(
+  { item, showResponseDivider }: { item: ErrorActivity; showResponseDivider: boolean },
+): ReactElement {
   return (
     <article className="chat-row inline-error-row">
+      {showResponseDivider ? <ResponseDivider /> : null}
       {item.text}
     </article>
   );
 }
 
-function summarizeWorkItems(items: Array<ThoughtActivity | ToolCallActivity>): string | null {
-  const labels = items.flatMap((item) => {
-    if (item.kind === 'thought') {
-      return item.streaming ? ['Thinking'] : [];
-    }
-    return [item.title];
-  });
-  const uniqueLabels = [...new Set(labels)];
-  if (uniqueLabels.length === 0) {
+function normalizeToolPreview(detail: string, title: string): string | null {
+  const trimmed = detail.trim();
+  if (!trimmed) {
     return null;
   }
-  const visibleLabels = uniqueLabels.slice(0, 3);
-  const remainder = uniqueLabels.length - visibleLabels.length;
-  return remainder > 0
-    ? `${visibleLabels.join(' · ')} +${remainder} more`
-    : visibleLabels.join(' · ');
+
+  const firstLine = trimmed.split(/\r?\n/u).map((line) => line.trim()).find(Boolean) ?? trimmed;
+  const normalizedTitle = title.trim().toLowerCase();
+  const normalizedLine = firstLine.trim().toLowerCase();
+  if (normalizedTitle === normalizedLine) {
+    return null;
+  }
+  return firstLine.length > 120 ? `${firstLine.slice(0, 117).trimEnd()}...` : firstLine;
+}
+
+function formatMessageTime(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date);
 }

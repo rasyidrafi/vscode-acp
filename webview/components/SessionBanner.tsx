@@ -40,6 +40,7 @@ export function SessionBanner({
         <div className="session-controls" aria-label="Session controls">
           {view.mode ? (
             <SessionSelect
+              kind="mode"
               label="Mode"
               value={view.mode.currentId}
               title={view.mode.currentLabel}
@@ -49,6 +50,7 @@ export function SessionBanner({
           ) : null}
           {view.model ? (
             <SessionSelect
+              kind="model"
               label="Model"
               value={view.model.currentId}
               title={view.model.currentLabel}
@@ -63,12 +65,14 @@ export function SessionBanner({
 }
 
 function SessionSelect({
+  kind,
   label,
   value,
   title,
   options,
   onChange,
 }: {
+  kind: 'mode' | 'model';
   label: string;
   value: string;
   title: string;
@@ -151,14 +155,14 @@ function SessionSelect({
     visibility: menuReady ? 'visible' : 'hidden',
     transform: menuOffsetX === 0 ? undefined : `translateX(${menuOffsetX}px)`,
     maxHeight: `${menuMaxHeight}px`,
-    minWidth: `${menuMinWidth}px`,
+    minWidth: `${Math.max(180, menuMinWidth)}px`,
     maxWidth: `${menuMaxWidth}px`,
   };
 
   return (
     <div
       ref={selectRef}
-      className="session-select"
+      className={`session-select ${kind}`}
       title={title}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -171,7 +175,7 @@ function SessionSelect({
         type="button"
         className="select-trigger"
         ref={triggerRef}
-        aria-label={label}
+        aria-label={`${label}: ${currentOption?.label || value}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listId}
@@ -214,12 +218,68 @@ function SessionSelect({
                 }
               }}
             >
-              <span>{option.label}</span>
-              {option.description ? <small>{option.description}</small> : null}
+              {kind === 'mode' ? (
+                <span className="select-option-icon" aria-hidden="true">
+                  {(() => {
+                    const OptionIcon = getModeOptionIcon(option.label, option.id);
+                    return OptionIcon ? <OptionIcon /> : null;
+                  })()}
+                </span>
+              ) : null}
+              <span className="select-option-copy">
+                <span>{option.label}</span>
+                {option.description ? <small>{option.description}</small> : null}
+              </span>
             </button>
           ))}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function getModeOptionIcon(label: string, id: string): (() => ReactElement) | null {
+  const key = `${id} ${label}`.toLowerCase();
+  if (key.includes('auto')) {
+    return PencilIcon;
+  }
+  if (key.includes('full') || key.includes('yolo')) {
+    return UnlockIcon;
+  }
+  if (key.includes('plan')) {
+    return null;
+  }
+  return LockIcon;
+}
+
+function LockIcon(): ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M5.5 7V5.75a2.5 2.5 0 0 1 5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <rect x="3.5" y="7" width="9" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function UnlockIcon(): ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M9.5 5.75a2.5 2.5 0 0 0-4.93-.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <rect x="3.5" y="7" width="9" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function PencilIcon(): ReactElement {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M10.9 2.8a1.6 1.6 0 1 1 2.3 2.3L6 12.3 3 13l.7-3 7.2-7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

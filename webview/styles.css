@@ -62,9 +62,10 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   min-width: 0;
   min-height: 28px;
-  padding: 2px 0;
+  padding: 4px 0 2px;
   width: 100%;
   margin: 0;
   background: transparent;
@@ -114,8 +115,10 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
+  margin-left: auto;
 }
 
 .session-select {
@@ -124,6 +127,8 @@ button:disabled {
   gap: 4px;
   position: relative;
   min-width: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .select-label {
@@ -141,7 +146,7 @@ button:disabled {
   border-radius: 4px;
   padding: 2px 6px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
   color: var(--vscode-foreground);
   background: transparent;
 }
@@ -166,46 +171,76 @@ button:disabled {
 
 .select-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 20;
-  width: max-content;
+  width: min(320px, calc(100vw - 16px));
   min-width: 180px;
-  max-width: calc(100vw - 16px);
+  max-width: min(320px, calc(100vw - 16px));
   overflow: hidden auto;
-  border: 1px solid var(--vscode-menu-border, var(--acp-border));
-  border-radius: 6px;
-  background: var(--vscode-menu-background, var(--acp-surface));
-  box-shadow: 0 10px 32px rgb(0 0 0 / 28%);
+  border: 1px solid var(--acp-border);
+  border-radius: 8px;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  padding: 3px;
+}
+
+.session-select.mode .select-menu {
+  width: min(280px, calc(100vw - 16px));
+  max-width: min(280px, calc(100vw - 16px));
+}
+
+.session-select.model .select-menu {
+  width: min(340px, calc(100vw - 16px));
+  max-width: min(340px, calc(100vw - 16px));
 }
 
 .select-menu.up {
   top: auto;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
 }
 
 .select-option {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  align-items: flex-start;
-  gap: 2px;
   border: 0;
-  border-radius: 0;
-  color: var(--vscode-menu-foreground, var(--vscode-foreground));
-  background: transparent;
+  border-radius: 7px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
   padding: 7px 9px;
   text-align: left;
 }
 
-.select-option > span {
+.select-option-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--acp-muted);
+}
+
+.select-option-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.select-option-copy > span {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.3;
+  font-weight: 500;
 }
 
-.select-option small {
+.select-option-copy small {
   color: var(--acp-muted);
   font-size: 0.9em;
   white-space: normal;
@@ -215,8 +250,17 @@ button:disabled {
 
 .select-option:hover,
 .select-option.active {
-  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
-  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 72%, var(--vscode-editor-background));
+}
+
+.select-option.active {
+  background: color-mix(in srgb, var(--vscode-list-activeSelectionBackground, var(--vscode-sideBar-background)) 28%, var(--vscode-editor-background));
+}
+
+.select-option:hover .select-option-icon,
+.select-option.active .select-option-icon {
+  color: var(--vscode-foreground);
 }
 
 .session-select button:focus-visible,
@@ -305,15 +349,6 @@ button:disabled {
   min-width: 0;
 }
 
-.message-eyebrow {
-  margin-bottom: 6px;
-  color: var(--acp-muted);
-  font-size: 0.72em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .message-content p {
   margin: 0;
 }
@@ -381,143 +416,198 @@ button:disabled {
 
 .message-row.user {
   align-self: flex-end;
-  max-width: min(82%, 620px);
+  max-width: min(78%, 620px);
   border: 1px solid var(--acp-border);
-  border-radius: 15px 15px 5px 15px;
+  border-radius: 18px 18px 8px 18px;
   color: var(--vscode-foreground);
-  background: color-mix(in srgb, var(--vscode-input-background) 78%, var(--vscode-button-background) 14%);
-  padding: 8px 11px;
-  box-shadow: 0 10px 26px rgb(0 0 0 / 10%);
+  background: rgb(0 0 0 / 4%);
+  padding: 11px 14px 8px;
+  box-shadow: none;
 }
 
 .message-row.assistant {
   align-self: flex-start;
   width: 100%;
-  padding: 2px 34px 2px 0;
+  padding: 2px 0;
   color: var(--vscode-foreground);
   background: transparent;
 }
 
-.message-row.assistant:hover .copy-button,
-.copy-button:focus-visible {
+.message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--acp-muted);
+  font-size: 0.84em;
+}
+
+.user-meta {
   opacity: 1;
 }
 
-.copy-button {
-  position: absolute;
-  top: 0;
-  right: 0;
+.assistant-meta {
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  opacity: 1;
+}
+
+.message-copy-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.message-inline-copy {
+  width: 24px;
   height: 24px;
-  min-width: 34px;
-  opacity: 0;
-  border: 1px solid var(--acp-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(0 0 0 / 8%);
   border-radius: 6px;
-  color: var(--vscode-button-secondaryForeground);
-  background: var(--vscode-button-secondaryBackground);
-  font-size: 0.82em;
-  transition: opacity 120ms ease, background 120ms ease;
+  color: var(--acp-muted);
+  background: var(--vscode-editor-background);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 4%);
+  opacity: 0;
+  transform: translateY(2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
-.copy-button:hover {
-  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-secondaryBackground));
+.message-row.user:hover .message-inline-copy,
+.message-row.assistant:hover .message-inline-copy,
+.message-inline-copy:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.work-row {
+.message-inline-copy:hover {
+  border-color: rgb(0 0 0 / 12%);
+  background: var(--vscode-editor-background);
+}
+
+.message-inline-copy:focus-visible {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.message-inline-copy.copied,
+.message-inline-copy:disabled {
+  opacity: 1;
+  cursor: default;
+  color: var(--vscode-testing-iconPassed);
+}
+
+.message-copy-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 4;
+  pointer-events: none;
+  white-space: nowrap;
+  border: 1px solid rgb(0 0 0 / 8%);
+  border-radius: 8px;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+  padding: 5px 8px;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 120ms ease, transform 120ms ease, color 120ms ease;
+}
+
+.message-copy-wrap:hover .message-copy-tooltip,
+.message-inline-copy:focus-visible + .message-copy-tooltip,
+.message-copy-tooltip.copied {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.message-copy-tooltip.copied {
+  color: var(--vscode-testing-iconPassed);
+}
+
+body.vscode-dark .message-row.user {
+  background: rgb(255 255 255 / 4%);
+}
+
+body.vscode-dark .message-inline-copy {
+  border-color: rgb(255 255 255 / 6%);
+  background: var(--vscode-editor-background);
+  box-shadow: none;
+}
+
+body.vscode-dark .message-inline-copy:hover {
+  border-color: rgb(255 255 255 / 10%);
+  background: var(--vscode-editor-background);
+}
+
+body.vscode-dark .message-copy-tooltip {
+  border-color: rgb(255 255 255 / 6%);
+  background: var(--vscode-editor-background);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
+}
+
+.thought-card,
+.tool-card {
   align-self: flex-start;
   width: 100%;
+}
+
+.thought-panel {
   border: 1px solid var(--acp-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--acp-surface-soft) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--acp-surface-soft) 36%, var(--vscode-editor-background));
+  overflow: hidden;
 }
 
-.work-row {
-  display: grid;
-  gap: 10px;
-  padding: 10px 12px;
-}
-
-.work-item {
-  min-width: 0;
-}
-
-.work-row-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.work-row-header > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.work-row-header strong {
-  font-size: 0.85em;
-  font-weight: 600;
-}
-
-.work-row-header span {
-  color: var(--acp-muted);
-  font-size: 0.78em;
-}
-
-.work-toggle-button {
-  border: 0;
-  color: var(--vscode-textLink-foreground);
-  background: transparent;
-  padding: 0;
-  font-size: 0.8em;
-}
-
-.work-row-list {
-  display: grid;
-  gap: 4px;
-}
-
-.work-row-summary {
-  margin: -2px 0 2px;
-  color: var(--acp-muted);
-  font-size: 0.82em;
-  line-height: 1.45;
-}
-
-.work-item + .work-item {
-  border-top: 1px solid color-mix(in srgb, var(--acp-border) 55%, transparent);
-}
-
-.thought-row {
-  color: var(--acp-muted);
-}
-
-.thought-row summary {
+.thought-panel summary {
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
-  font-weight: 500;
+  padding: 10px 12px;
   list-style: none;
+  color: var(--vscode-foreground);
+  font-weight: 500;
 }
 
-.thought-row summary::-webkit-details-marker {
+.thought-panel summary::-webkit-details-marker {
   display: none;
 }
 
-.thought-row p,
-.tool-row p {
-  margin: 0 0 6px 24px;
-  color: var(--acp-muted);
-  white-space: pre-wrap;
+.thought-panel[open] summary {
+  border-bottom: 1px solid color-mix(in srgb, var(--acp-border) 55%, transparent);
 }
 
-.tool-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 5px 8px;
-  padding: 8px 0;
-  align-items: start;
+.thought-row-icon {
+  flex: 0 0 auto;
+  color: var(--vscode-foreground);
+  opacity: 0.92;
+}
+
+.thought-body {
+  padding: 10px 12px 12px;
+  color: var(--acp-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.tool-card {
+  border: 1px solid var(--acp-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--acp-surface-soft) 24%, var(--vscode-editor-background));
+  padding: 6px 10px;
 }
 
 .tool-row-heading {
@@ -527,54 +617,34 @@ button:disabled {
   min-width: 0;
 }
 
-.tool-row strong {
+.tool-row-glyph {
+  flex: 0 0 auto;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.92em;
+  line-height: 1.2;
+  opacity: 0.82;
+}
+
+.tool-card p {
+  margin: 0;
   min-width: 0;
   overflow: hidden;
+  color: var(--acp-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  line-height: 1.45;
 }
 
-.tool-row span {
-  color: var(--acp-muted);
-  font-size: 0.86em;
-}
-
-.work-item-icon {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--acp-muted);
-  margin-top: 0.15em;
-}
-
-.work-item-icon.thinking,
-.work-item-icon.running {
-  background: var(--vscode-progressBar-background);
-}
-
-.work-item-icon.completed {
-  background: var(--vscode-testing-iconPassed);
-}
-
-.work-item-icon.failed {
-  background: var(--vscode-testing-iconFailed);
-}
-
-.work-item-icon.pending {
-  background: var(--acp-muted);
-}
-
-.tool-row.running span {
+.tool-card.running .tool-row-glyph {
   color: var(--vscode-progressBar-background);
 }
 
-.tool-row.completed span {
+.tool-card.completed .tool-row-glyph {
   color: var(--vscode-testing-iconPassed);
 }
 
-.tool-row.failed span {
+.tool-card.failed .tool-row-glyph {
   color: var(--vscode-testing-iconFailed);
 }
 
@@ -1080,10 +1150,20 @@ button:disabled {
 
   .session-controls {
     width: 100%;
+    justify-content: stretch;
+    margin-left: 0;
   }
 
   .session-select {
     flex: 1 1 0;
+  }
+
+  .select-menu {
+    left: 0;
+    right: auto;
+    width: min(300px, calc(100vw - 16px));
+    min-width: 0;
+    max-width: min(300px, calc(100vw - 16px));
   }
 
   .timeline-scroll {

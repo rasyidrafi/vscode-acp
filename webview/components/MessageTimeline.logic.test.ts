@@ -4,7 +4,7 @@ import type { ChatItem } from '../../src/shared/chatModel';
 import { deriveTimelineRows } from './MessageTimeline.logic';
 
 describe('deriveTimelineRows', () => {
-  it('groups adjacent thoughts and tool calls into work rows', () => {
+  it('renders thoughts and tool calls as sealed timeline rows', () => {
     const rows = deriveTimelineRows([
       userMessage('user-1'),
       assistantMessage('assistant-1'),
@@ -17,15 +17,36 @@ describe('deriveTimelineRows', () => {
     expect(rows.map((row) => row.kind)).toEqual([
       'message',
       'message',
-      'work',
+      'thought',
+      'tool',
+      'tool',
     ]);
     expect(rows[1]).toMatchObject({
       kind: 'message',
       id: 'assistant-1',
     });
     expect(rows[2]).toMatchObject({
-      kind: 'work',
-      id: 'work-thought-1-tool-2',
+      kind: 'thought',
+      id: 'thought-1',
+    });
+  });
+
+  it('marks the first non-user item after a user prompt as the response start', () => {
+    const rows = deriveTimelineRows([
+      userMessage('user-1'),
+    ], [
+      thought('thought-1'),
+      toolCall('tool-1'),
+      toolCall('tool-2'),
+    ]);
+
+    expect(rows[1]).toMatchObject({
+      kind: 'thought',
+      showResponseDivider: true,
+    });
+    expect(rows[2]).toMatchObject({
+      kind: 'tool',
+      showResponseDivider: false,
     });
   });
 
@@ -41,6 +62,7 @@ describe('deriveTimelineRows', () => {
     expect(secondRows[0]).toBe(firstRows[0]);
     expect(secondRows[1]).toBe(firstRows[1]);
     expect(secondRows[2]).toBe(firstRows[2]);
+    expect(secondRows[3]).toBe(firstRows[3]);
   });
 
   it('replaces only the changed streaming row', () => {

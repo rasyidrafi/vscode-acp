@@ -6,7 +6,6 @@ export interface DeriveTimelineRowsOptions {
 }
 
 type WorkItem = Extract<ActivityItem, { kind: 'toolCall' | 'thought' }>;
-
 export function deriveTimelineRows(
   messages: ConversationMessage[],
   activities: ActivityItem[],
@@ -27,50 +26,61 @@ function buildRows(
   turnInProgress: boolean,
 ): TimelineRow[] {
   const rows: TimelineRow[] = [];
-  let workItems: WorkItem[] = [];
   const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
-  let previousNonWorkKind: 'message-user' | 'message-assistant' | 'activity' | 'error' | null = null;
-
-  function flushWorkItems(): void {
-    if (workItems.length === 0) {
-      return;
-    }
-
-    const first = workItems[0];
-    const last = workItems[workItems.length - 1];
-    rows.push({
-      kind: 'work',
-      id: first.id === last.id ? `work-${first.id}` : `work-${first.id}-${last.id}`,
-      items: workItems,
-    });
-    workItems = [];
-  }
+  const lastAssistantId = [...messages].reverse().find((item) => item.role === 'assistant')?.id ?? null;
+  let awaitingResponseStart = false;
 
   for (const item of mergedItems) {
     switch (item.kind) {
-      case 'thought':
-      case 'toolCall':
-        workItems.push(item);
-        break;
       case 'message':
-        flushWorkItems();
+        if (item.role === 'user') {
+          rows.push({
+            kind: 'message',
+            id: item.id,
+            item,
+          });
+          awaitingResponseStart = true;
+          break;
+        }
+
         rows.push({
           kind: 'message',
           id: item.id,
           item,
-          showResponseDivider: item.role === 'assistant' && previousNonWorkKind !== 'message-assistant',
+          showResponseDivider: awaitingResponseStart,
+          showAssistantMeta: item.id === lastAssistantId,
         });
-        previousNonWorkKind = item.role === 'assistant' ? 'message-assistant' : 'message-user';
+        awaitingResponseStart = false;
+        break;
+      case 'thought':
+        rows.push({
+          kind: 'thought',
+          id: item.id,
+          item,
+          showResponseDivider: awaitingResponseStart,
+        });
+        awaitingResponseStart = false;
+        break;
+      case 'toolCall':
+        rows.push({
+          kind: 'tool',
+          id: item.id,
+          item,
+          showResponseDivider: awaitingResponseStart,
+        });
+        awaitingResponseStart = false;
         break;
       case 'error':
-        flushWorkItems();
-        rows.push({ kind: 'error', id: item.id, item });
-        previousNonWorkKind = 'error';
+        rows.push({
+          kind: 'error',
+          id: item.id,
+          item,
+          showResponseDivider: awaitingResponseStart,
+        });
+        awaitingResponseStart = false;
         break;
     }
   }
-
-  flushWorkItems();
 
   if (turnInProgress && !hasStreamingItem(messages, activities)) {
     rows.push({ kind: 'working', id: 'working-current-turn' });
@@ -88,15 +98,26 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
     case 'message':
       return previous.kind === 'message' &&
         previous.item === next.item &&
+        previous.showResponseDivider === next.showResponseDivider &&
+        previous.showAssistantMeta === next.showAssistantMeta
+        ? previous
+        : next;
+    case 'thought':
+      return previous.kind === 'thought' &&
+        previous.item === next.item &&
+        previous.showResponseDivider === next.showResponseDivider
+        ? previous
+        : next;
+    case 'tool':
+      return previous.kind === 'tool' &&
+        previous.item === next.item &&
         previous.showResponseDivider === next.showResponseDivider
         ? previous
         : next;
     case 'error':
-      return previous.kind === 'error' && previous.item === next.item ? previous : next;
-    case 'work':
-      return previous.kind === 'work' &&
-        previous.items.length === next.items.length &&
-        previous.items.every((item, index) => item === next.items[index])
+      return previous.kind === 'error' &&
+        previous.item === next.item &&
+        previous.showResponseDivider === next.showResponseDivider
         ? previous
         : next;
     case 'working':

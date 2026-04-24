@@ -25,6 +25,7 @@ export interface ConversationMessage extends OrderedTimelineItem {
   id: string;
   role: ChatRole;
   text: string;
+  createdAt?: string;
   streaming?: boolean;
 }
 
@@ -59,16 +60,25 @@ export type TimelineRow =
       id: string;
       item: ConversationMessage;
       showResponseDivider?: boolean;
+      showAssistantMeta?: boolean;
     }
   | {
-      kind: 'work';
+      kind: 'thought';
       id: string;
-      items: Array<Extract<ActivityItem, { kind: 'toolCall' | 'thought' }>>;
+      item: ThoughtActivity;
+      showResponseDivider?: boolean;
+    }
+  | {
+      kind: 'tool';
+      id: string;
+      item: ToolCallActivity;
+      showResponseDivider?: boolean;
     }
   | {
       kind: 'error';
       id: string;
       item: ErrorActivity;
+      showResponseDivider?: boolean;
     }
   | {
       kind: 'working';

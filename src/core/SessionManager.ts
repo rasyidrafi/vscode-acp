@@ -10,6 +10,7 @@ import { SessionUpdateHandler } from '../handlers/SessionUpdateHandler';
 import { getAgentConfigs } from '../config/AgentConfig';
 import { log, logError } from '../utils/Logger';
 import { sendEvent, sendError } from '../utils/TelemetryManager';
+import { getSessionModels } from '../shared/acpAdapters';
 
 export interface SessionInfo {
   sessionId: string;
@@ -287,7 +288,7 @@ export class SessionManager extends EventEmitter {
       createdAt: new Date().toISOString(),
       initResponse: connInfo.initResponse,
       modes: sessionResponse.modes ?? null,
-      models: (sessionResponse as any).models ?? null,
+      models: getSessionModels(sessionResponse),
       availableCommands: [],
     };
   }
@@ -364,7 +365,14 @@ export class SessionManager extends EventEmitter {
     const connInfo = this.connectionManager.getConnection(session.agentId);
     if (!connInfo) { return; }
 
-    await (connInfo.connection as any).unstable_setSessionModel({ sessionId, modelId });
+    const connection = connInfo.connection as typeof connInfo.connection & {
+      unstable_setSessionModel?: (params: { sessionId: string; modelId: string }) => Promise<unknown>;
+    };
+    if (!connection.unstable_setSessionModel) {
+      throw new Error('Active agent does not support session model switching.');
+    }
+
+    await connection.unstable_setSessionModel({ sessionId, modelId });
 
     // Update local state
     if (session.models) {

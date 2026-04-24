@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { SessionManager } from '../core/SessionManager';
 import { SessionUpdateHandler, SessionUpdateListener } from '../handlers/SessionUpdateHandler';
-import type { SessionModeState, SessionModelState, SessionNotification } from '@agentclientprotocol/sdk';
+import type { SessionModeState, SessionModelState } from '@agentclientprotocol/sdk';
 import { logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../shared/bridge';
 import { isWebviewToExtensionMessage } from '../shared/bridge';
+import { getAvailableCommands, type BridgeSessionNotification } from '../shared/acpAdapters';
 import { getChatWebviewHtml } from './webviewHtml';
 
 /**
@@ -39,7 +40,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     private readonly sessionUpdateHandler: SessionUpdateHandler,
   ) {
     // Register as a session update listener
-    this.updateListener = (update: SessionNotification) => {
+    this.updateListener = (update: BridgeSessionNotification) => {
       this.handleSessionUpdate(update);
     };
     this.sessionUpdateHandler.addListener(this.updateListener);
@@ -114,17 +115,17 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   /**
    * Forward session update to webview.
    */
-  private handleSessionUpdate(update: SessionNotification): void {
+  private handleSessionUpdate(update: BridgeSessionNotification): void {
     // Only forward updates for the active session
     const activeId = this.sessionManager.getActiveSessionId();
     if (update.sessionId !== activeId) { return; }
 
     // Persist available commands on session state
-    const updateData = update.update as any;
-    if (updateData?.sessionUpdate === 'available_commands_update') {
+    const availableCommands = getAvailableCommands(update.update);
+    if (availableCommands) {
       const session = this.sessionManager.getSession(update.sessionId);
       if (session) {
-        session.availableCommands = updateData.availableCommands || [];
+        session.availableCommands = availableCommands;
       }
     }
 

@@ -1,4 +1,5 @@
 import type { AvailableCommand, SessionModeState } from '@agentclientprotocol/sdk';
+import type { BridgeSessionUpdate, SupportedSessionUpdate } from '../src/shared/acpAdapters';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
 import type {
@@ -125,11 +126,7 @@ function upsertAttachedFile(
   ];
 }
 
-function applySessionUpdate(state: WebviewState, update: unknown): WebviewState {
-  if (!isRecord(update) || typeof update.sessionUpdate !== 'string') {
-    return state;
-  }
-
+function applySessionUpdate(state: WebviewState, update: BridgeSessionUpdate): WebviewState {
   switch (update.sessionUpdate) {
     case 'agent_message_chunk':
       return appendTextChunk(state, 'message', getContentText(update));
@@ -145,6 +142,7 @@ function applySessionUpdate(state: WebviewState, update: unknown): WebviewState 
       return updateAvailableCommands(state, update.availableCommands);
     case 'current_mode_update':
       return updateCurrentMode(state, update.currentModeId);
+    case 'unsupported':
     default:
       return state;
   }
@@ -229,7 +227,10 @@ function appendTextChunk(
   });
 }
 
-function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState {
+function upsertToolCall(
+  state: WebviewState,
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' }>,
+): WebviewState {
   const segmentedState = clearCurrentThoughtSegment(closeCurrentAssistantMessageSegment(state));
   const id = typeof update.toolCallId === 'string' && update.toolCallId
     ? `tool-${update.toolCallId}`
@@ -257,7 +258,10 @@ function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState
   return existing ? replaceActivity(segmentedState, id, item) : appendActivity(segmentedState, item);
 }
 
-function updateToolCall(state: WebviewState, update: StringRecord): WebviewState {
+function updateToolCall(
+  state: WebviewState,
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call_update' }>,
+): WebviewState {
   const segmentedState = clearCurrentThoughtSegment(closeCurrentAssistantMessageSegment(state));
   const rawId = typeof update.toolCallId === 'string' && update.toolCallId ? update.toolCallId : 'unknown';
   const id = `tool-${rawId}`;
@@ -269,7 +273,7 @@ function updateToolCall(state: WebviewState, update: StringRecord): WebviewState
 
   const input = update.rawInput ? stringifyAny(update.rawInput) : undefined;
   const output = update.rawOutput ? stringifyAny(update.rawOutput) : undefined;
-  const error = update.error ? stringifyAny(update.error) : undefined;
+  const error = 'error' in update ? stringifyAny(update.error) : undefined;
 
   const item: ActivityItem = {
     order: existing?.order ?? nextOrder(segmentedState),
@@ -296,13 +300,17 @@ function stringifyAny(val: unknown): string {
   }
 }
 
-function upsertPlan(state: WebviewState, update: StringRecord): WebviewState {
-  const entries = Array.isArray(update.entries) ? update.entries : [];
+function upsertPlan(
+  state: WebviewState,
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'plan' }>,
+): WebviewState {
+  const entries = update.entries;
+  const explanation = 'explanation' in update && typeof update.explanation === 'string' && update.explanation.trim()
+    ? update.explanation
+    : undefined;
   const item: ActivePlan = {
     id: 'plan-current',
-    explanation: typeof update.explanation === 'string' && update.explanation.trim()
-      ? update.explanation
-      : undefined,
+    explanation,
     entries: entries.map((entry, index) => normalizePlanEntry(entry, index)),
   };
   return {
@@ -311,8 +319,8 @@ function upsertPlan(state: WebviewState, update: StringRecord): WebviewState {
   };
 }
 
-function updateAvailableCommands(state: WebviewState, commands: unknown): WebviewState {
-  const availableCommands = Array.isArray(commands) ? commands as AvailableCommand[] : [];
+function updateAvailableCommands(state: WebviewState, commands: AvailableCommand[]): WebviewState {
+  const availableCommands = commands;
   return {
     ...state,
     availableCommands,
@@ -503,7 +511,9 @@ function normalizePlanStatus(value: unknown): PlanEntryStatus {
   }
 }
 
-function getContentText(update: StringRecord): string | null {
+function getContentText(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'agent_message_chunk' | 'agent_thought_chunk' }>,
+): string | null {
   const content = update.content;
   if (!isRecord(content)) {
     return null;
@@ -511,13 +521,15 @@ function getContentText(update: StringRecord): string | null {
   return content.type === 'text' && typeof content.text === 'string' ? content.text : null;
 }
 
-function getToolDetail(update: StringRecord): string | undefined {
+function getToolDetail(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
+): string | undefined {
   const rawOutput = update.rawOutput;
   if (typeof rawOutput === 'string' && rawOutput.trim()) {
     return rawOutput;
   }
 
-  const content = update.content;
+  const content = update.content as unknown;
   if (Array.isArray(content)) {
     const text = content
       .map((part) => {
@@ -529,7 +541,7 @@ function getToolDetail(update: StringRecord): string | undefined {
             ? part.content.text
             : null;
         }
-        return part.type === 'text' && typeof part.text === 'string' ? part.text : null;
+        return typeof part.text === 'string' ? part.text : null;
       })
       .filter((part): part is string => Boolean(part))
       .join('\n');
@@ -540,7 +552,7 @@ function getToolDetail(update: StringRecord): string | undefined {
 }
 
 function deriveToolCallPresentation(
-  update: StringRecord,
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
   options: { fallbackTitle: string; fallbackDetail?: string },
 ): { title: string; detail?: string } {
   const rawTitle = firstString(update.title) ?? options.fallbackTitle;
@@ -595,10 +607,11 @@ function deriveToolCallPresentation(
   };
 }
 
-function extractToolCommand(update: StringRecord): string | undefined {
+function extractToolCommand(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
+): string | undefined {
   const rawInput = isRecord(update.rawInput) ? update.rawInput : undefined;
   const candidates: unknown[] = [
-    update.command,
     rawInput?.command,
     rawInput?.cmd,
   ];
@@ -632,7 +645,9 @@ function normalizeCommandValue(value: unknown): string | undefined {
   return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
-function extractPrimaryPath(update: StringRecord): string | undefined {
+function extractPrimaryPath(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
+): string | undefined {
   const paths: string[] = [];
   collectPaths(update, paths, new Set<string>(), 0);
   return paths[0];
@@ -687,7 +702,9 @@ function looksPathLike(value: string): boolean {
   );
 }
 
-function extractSearchQuery(update: StringRecord): string | undefined {
+function extractSearchQuery(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
+): string | undefined {
   const rawInput = isRecord(update.rawInput) ? update.rawInput : undefined;
   return firstString(
     rawInput?.query,
@@ -697,7 +714,9 @@ function extractSearchQuery(update: StringRecord): string | undefined {
   );
 }
 
-function summarizeToolOutput(update: StringRecord): string | undefined {
+function summarizeToolOutput(
+  update: Extract<SupportedSessionUpdate, { sessionUpdate: 'tool_call' | 'tool_call_update' }>,
+): string | undefined {
   const path = extractPrimaryPath(update);
   if (path) {
     return path;

@@ -14,7 +14,8 @@ import type {
   ReleaseTerminalResponse,
 } from '@agentclientprotocol/sdk';
 
-import { spawn, ChildProcess } from 'node:child_process';
+import { ChildProcess } from 'node:child_process';
+import { resolveCommandFromPath, spawnCommand } from '../utils/processLaunch';
 
 interface ManagedTerminal {
   id: string;
@@ -41,7 +42,8 @@ export class TerminalHandler {
     const terminalId = `term_${this.nextId++}`;
     const outputByteLimit = params.outputByteLimit ?? 1024 * 1024; // 1MB default
 
-    log(`createTerminal: ${params.command} ${(params.args || []).join(' ')} (id=${terminalId})`);
+    const resolvedCommand = resolveCommandFromPath(params.command) || params.command;
+    log(`createTerminal: ${resolvedCommand} ${(params.args || []).join(' ')} (id=${terminalId})`);
 
     const env: Record<string, string> = { ...process.env } as Record<string, string>;
     if (params.env) {
@@ -50,10 +52,9 @@ export class TerminalHandler {
       }
     }
 
-    const child = spawn(params.command, params.args || [], {
+    const child = spawnCommand(resolvedCommand, params.args || [], {
       cwd: params.cwd || undefined,
       env,
-      shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

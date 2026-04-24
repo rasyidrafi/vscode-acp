@@ -360,6 +360,11 @@
           "default": "",
           "description": "Default working directory for agent sessions. Leave empty to use the current workspace folder."
         },
+        "acp.autoOpenWrittenFilesInEditor": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open files in the editor after an ACP file write completes."
+        },
         "acp.logTraffic": {
           "type": "boolean",
           "default": true,
@@ -383,7 +388,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "lint": "eslint src --max-warnings 0",
-    "test:unit": "vitest run --root . webview src/core",
+    "test:unit": "vitest run --root . webview src/core src/handlers src/utils src/shared",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "test": "vscode-test"
   },

@@ -1,8 +1,13 @@
 import { log } from '../utils/Logger';
 
 import type { SessionNotification } from '@agentclientprotocol/sdk';
+import {
+  adaptSessionNotification,
+  getSessionUpdateLabel,
+  type BridgeSessionNotification,
+} from '../shared/acpAdapters';
 
-export type SessionUpdateListener = (update: SessionNotification) => void;
+export type SessionUpdateListener = (update: BridgeSessionNotification) => void;
 
 /**
  * Routes session/update notifications to registered listeners.
@@ -20,12 +25,12 @@ export class SessionUpdateHandler {
   }
 
   handleUpdate(update: SessionNotification): void {
-    const updateType = (update.update as any)?.sessionUpdate || 'unknown';
-    log(`sessionUpdate: type=${updateType}, sessionId=${update.sessionId}`);
+    const normalized = adaptSessionNotification(update);
+    log(`sessionUpdate: type=${getSessionUpdateLabel(normalized.update)}, sessionId=${normalized.sessionId}`);
 
     for (const listener of this.listeners) {
       try {
-        listener(update);
+        listener(normalized);
       } catch (e) {
         log(`Error in session update listener: ${e}`);
       }

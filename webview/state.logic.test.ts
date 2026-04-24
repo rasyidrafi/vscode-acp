@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { adaptSessionUpdate } from '../src/shared/acpAdapters';
 import type { BridgeSessionState, ExtensionToWebviewMessage } from '../src/shared/bridge';
 import { createInitialState, isPersistedWebviewState, toPersistedState } from './state';
 import { reduceWebviewState } from './state.logic';
@@ -366,6 +367,6 @@ function sessionUpdate(update: Record<string, unknown>) {
   return extensionMessage({
     type: 'sessionUpdate',
     sessionId: 'session-1',
-    update: update as never,
+    update: adaptSessionUpdate(update),
   });
 }

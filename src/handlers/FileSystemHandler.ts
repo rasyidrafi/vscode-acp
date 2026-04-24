@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { dirname } from 'node:path';
 import { log, logError } from '../utils/Logger';
 
 import type {
@@ -55,21 +56,43 @@ export class FileSystemHandler {
   }
 
   /**
-   * Write a text file. Creates parent directories if needed.
-   * Opens the file in the editor so the user can see changes.
+   * Write a text file. If the file is open, update the editor buffer so VS Code
+   * keeps the document dirty state. Otherwise create parent directories and
+   * write to disk, then reveal the file in the editor.
    */
   async writeTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
     log(`writeTextFile: ${params.path}`);
 
     try {
       const uri = vscode.Uri.file(params.path);
-      const encoded = Buffer.from(params.content, 'utf-8');
+      const config = vscode.workspace.getConfiguration('acp');
+      const autoOpenInEditor = config.get<boolean>('autoOpenWrittenFilesInEditor', false);
+      const openDoc = vscode.workspace.textDocuments.find(
+        doc => doc.uri.fsPath === uri.fsPath
+      );
 
-      await vscode.workspace.fs.writeFile(uri, encoded);
+      if (openDoc) {
+        const edit = new vscode.WorkspaceEdit();
+        const fullRange = new vscode.Range(
+          openDoc.positionAt(0),
+          openDoc.positionAt(openDoc.getText().length),
+        );
+        edit.replace(uri, fullRange, params.content);
 
-      // Open the file in the editor so the user sees the change
-      const doc = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(doc, { preview: true, preserveFocus: true });
+        const applied = await vscode.workspace.applyEdit(edit);
+        if (!applied) {
+          throw new Error(`Failed to update open document: ${params.path}`);
+        }
+      } else {
+        const encoded = Buffer.from(params.content, 'utf-8');
+        await vscode.workspace.fs.createDirectory(vscode.Uri.file(dirname(params.path)));
+        await vscode.workspace.fs.writeFile(uri, encoded);
+      }
+
+      if (autoOpenInEditor) {
+        const doc = openDoc ?? await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { preview: true, preserveFocus: true });
+      }
 
       return {};
     } catch (e) {

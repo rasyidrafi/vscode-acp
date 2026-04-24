@@ -3,8 +3,8 @@ import type {
   PromptResponse,
   SessionModeState,
   SessionModelState,
-  SessionNotification,
 } from '@agentclientprotocol/sdk';
+import type { BridgeSessionUpdate } from './acpAdapters';
 
 export interface BridgeSessionState {
   sessionId: string;
@@ -38,7 +38,7 @@ export type ExtensionToWebviewMessage =
   | {
       type: 'sessionUpdate';
       sessionId: string;
-      update: SessionNotification['update'];
+      update: BridgeSessionUpdate;
     }
   | { type: 'promptStart' }
   | {

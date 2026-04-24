@@ -1,52 +1,72 @@
 import { X, Plus, Square, ArrowUp } from 'lucide-react';
-import type { AvailableCommand } from '@agentclientprotocol/sdk';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { AvailableCommand, SessionModeState } from '@agentclientprotocol/sdk';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
 
 import type { AttachedFile } from '../../src/shared/bridge';
 import { searchCommands } from '../lib/commandSearch';
-import { ComposerCommandMenu } from './ComposerCommandMenu';
+import type { RankedCommand } from '../lib/commandSearch';
 import {
   commandInputHint,
+  createBuiltInCommands,
   commandNeedsInput,
   commandPrompt,
   getComposerSendState,
+  getLocalCommandMeta,
   getSlashCommandQuery,
 } from './ChatComposer.logic';
+
+export interface ComposerMenuState {
+  commands: RankedCommand[];
+  activeIndex: number;
+  onHover: (index: number) => void;
+  onSelect: (command: AvailableCommand) => void;
+}
 
 interface ChatComposerProps {
   hasSession: boolean;
   turnInProgress: boolean;
   availableCommands: AvailableCommand[];
+  modes: SessionModeState | null;
   attachedFiles: AttachedFile[];
   onSubmit: (text: string) => void;
   onCancel: () => void;
   onAttachFile: () => void;
   onRemoveAttachment: (path: string) => void;
+  onModeChange: (modeId: string) => void;
+  onCommandMenuChange?: (state: ComposerMenuState | null) => void;
 }
 
 export function ChatComposer({
   hasSession,
   turnInProgress,
   availableCommands,
+  modes,
   attachedFiles,
   onSubmit,
   onCancel,
   onAttachFile,
   onRemoveAttachment,
+  onModeChange,
+  onCommandMenuChange,
 }: ChatComposerProps): ReactElement {
   const [prompt, setPrompt] = useState('');
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const [commandHint, setCommandHint] = useState<string | null>(null);
   const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const builtInCommands = useMemo(() => createBuiltInCommands(modes), [modes]);
+  const commandCatalog = useMemo(() => (
+    [...builtInCommands, ...availableCommands.filter((command) => (
+      builtInCommands.every((builtInCommand) => builtInCommand.name !== command.name)
+    ))]
+  ), [availableCommands, builtInCommands]);
   const slashQuery = getSlashCommandQuery(prompt);
   const commandResults = useMemo(() => (
-    slashQuery === null ? [] : searchCommands(availableCommands, slashQuery)
-  ), [availableCommands, slashQuery]);
+    slashQuery === null ? [] : searchCommands(commandCatalog, slashQuery)
+  ), [commandCatalog, slashQuery]);
   const menuOpen = slashQuery !== null &&
     slashQuery !== dismissedQuery &&
-    commandResults.length > 0 &&
     !turnInProgress;
   const sendState = getComposerSendState({
     hasSession,
@@ -75,7 +95,7 @@ export function ChatComposer({
     }
   }, [prompt]);
 
-  function submitPrompt(text = prompt): void {
+  const submitPrompt = useCallback((text = prompt): void => {
     const trimmed = text.trim();
     if (!hasSession || turnInProgress || (!trimmed && attachedFiles.length === 0)) {
       return;
@@ -83,9 +103,17 @@ export function ChatComposer({
     onSubmit(trimmed || 'Please use the attached files as context.');
     setPrompt('');
     setCommandHint(null);
-  }
+  }, [attachedFiles.length, hasSession, onSubmit, prompt, turnInProgress]);
 
-  function selectCommand(command: AvailableCommand): void {
+  const selectCommand = useCallback((command: AvailableCommand): void => {
+    const localCommand = getLocalCommandMeta(command);
+    if (localCommand?.kind === 'set-mode') {
+      onModeChange(localCommand.modeId);
+      setPrompt('');
+      setCommandHint(null);
+      return;
+    }
+
     const nextPrompt = commandPrompt(command);
     if (commandNeedsInput(command)) {
       setPrompt(`${nextPrompt} `);
@@ -95,7 +123,31 @@ export function ChatComposer({
     }
 
     submitPrompt(nextPrompt);
-  }
+  }, [onModeChange, submitPrompt]);
+
+  useEffect(() => {
+    if (!onCommandMenuChange) {
+      return;
+    }
+
+    if (!menuOpen) {
+      onCommandMenuChange(null);
+      return;
+    }
+
+    onCommandMenuChange({
+      commands: commandResults,
+      activeIndex: activeCommandIndex,
+      onHover: setActiveCommandIndex,
+      onSelect: selectCommand,
+    });
+  }, [activeCommandIndex, commandResults, menuOpen, onCommandMenuChange, selectCommand]);
+
+  useEffect(() => {
+    return () => {
+      onCommandMenuChange?.(null);
+    };
+  }, [onCommandMenuChange]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
     if (menuOpen) {
@@ -137,12 +189,6 @@ export function ChatComposer({
   return (
     <footer className="composer-shell">
       <div className="composer-card">
-        <ComposerCommandMenu
-          commands={menuOpen ? commandResults : []}
-          activeIndex={activeCommandIndex}
-          onHover={setActiveCommandIndex}
-          onSelect={selectCommand}
-        />
         {attachedFiles.length > 0 ? (
           <div className="attachment-strip" aria-label="Attached files">
             {attachedFiles.map((file) => (

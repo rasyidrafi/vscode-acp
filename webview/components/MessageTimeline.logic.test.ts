@@ -31,25 +31,6 @@ describe('deriveTimelineRows', () => {
     });
   });
 
-  it('marks the first non-user item after a user prompt as the response start', () => {
-    const rows = deriveTimelineRows([
-      userMessage('user-1'),
-    ], [
-      thought('thought-1'),
-      toolCall('tool-1'),
-      toolCall('tool-2'),
-    ]);
-
-    expect(rows[1]).toMatchObject({
-      kind: 'thought',
-      showResponseDivider: true,
-    });
-    expect(rows[2]).toMatchObject({
-      kind: 'tool',
-      showResponseDivider: false,
-    });
-  });
-
   it('preserves row object identity when visible fields did not change', () => {
     const messages = [
       userMessage('user-1'),

@@ -279,6 +279,15 @@ export function activate(context: vscode.ExtensionContext): void {
     sessionTreeProvider.refresh();
   });
 
+  // Open ACP extension settings
+  const openSettingsCmd = vscode.commands.registerCommand('acp.openSettings', async () => {
+    sendEvent('command/openSettings');
+    await vscode.commands.executeCommand(
+      'workbench.action.openSettings',
+      '@ext:formulahendry.acp-client',
+    );
+  });
+
   // Add Agent Configuration
   const addAgentCmd = vscode.commands.registerCommand('acp.addAgent', async () => {
     const name = await vscode.window.showInputBox({
@@ -396,6 +405,7 @@ export function activate(context: vscode.ExtensionContext): void {
     setModeCmd,
     setModelCmd,
     refreshAgentsCmd,
+    openSettingsCmd,
     addAgentCmd,
     removeAgentCmd,
     attachFileCmd,

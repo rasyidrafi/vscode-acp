@@ -72,16 +72,15 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
       return (
         <MessageRow
           item={row.item}
-          showResponseDivider={row.showResponseDivider === true}
           showAssistantMeta={row.showAssistantMeta === true}
         />
       );
     case 'thought':
-      return <ThoughtRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
+      return <ThoughtRow item={row.item} />;
     case 'tool':
-      return <ToolCallRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
+      return <ToolCallRow item={row.item} />;
     case 'error':
-      return <ErrorRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
+      return <ErrorRow item={row.item} />;
     case 'working':
       return (
         <article className="chat-row working-row" aria-label="Agent is working">
@@ -99,9 +98,8 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
 function MessageRow(
   {
     item,
-    showResponseDivider,
     showAssistantMeta,
-  }: { item: ConversationMessage; showResponseDivider: boolean; showAssistantMeta: boolean },
+  }: { item: ConversationMessage; showAssistantMeta: boolean },
 ): ReactElement {
   const isAssistant = item.role === 'assistant';
   const showMeta = !isAssistant || showAssistantMeta;
@@ -113,7 +111,6 @@ function MessageRow(
 
   return (
     <article className={`chat-row message-row ${item.role}`}>
-      {showResponseDivider ? <ResponseDivider /> : null}
       <div className="message-content">
         {isAssistant ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
@@ -137,16 +134,6 @@ function MessageRow(
         ) : null}
       </div>
     </article>
-  );
-}
-
-function ResponseDivider(): ReactElement {
-  return (
-    <div className="response-divider" aria-hidden="true">
-      <span />
-      <small>Response</small>
-      <span />
-    </div>
   );
 }
 
@@ -199,9 +186,7 @@ function MessageCopyButton({ text }: { text: string }): ReactElement {
   );
 }
 
-function ThoughtRow(
-  { item, showResponseDivider }: { item: ThoughtActivity; showResponseDivider: boolean },
-): ReactElement {
+function ThoughtRow({ item }: { item: ThoughtActivity }): ReactElement {
   const text = item.text.trim() || 'Thought';
   const [isOpen, setIsOpen] = useState(!item.collapsed);
 
@@ -215,7 +200,6 @@ function ThoughtRow(
 
   return (
     <article className="chat-row thought-row">
-      {showResponseDivider ? <ResponseDivider /> : null}
       <div
         className="thought-row-header"
         onClick={handleHeaderClick}
@@ -272,9 +256,7 @@ function getToolIcon(toolName: string): ReactElement {
   return <Icon size={14} />;
 }
 
-function ToolCallRow(
-  { item, showResponseDivider }: { item: ToolCallActivity; showResponseDivider: boolean },
-): ReactElement {
+function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const preview = item.detail && normalizeToolPreview(item.detail, item.title);
   const title = item.title;
@@ -288,7 +270,6 @@ function ToolCallRow(
 
   return (
     <article className={`chat-row tool-row ${item.status}${hasContent ? ' has-content' : ''}`}>
-      {showResponseDivider ? <ResponseDivider /> : null}
       <div
         className="tool-row-header"
         onClick={handleHeaderClick}
@@ -351,12 +332,9 @@ function ToolSection({ label, children }: { label: string; children: ReactElemen
   );
 }
 
-function ErrorRow(
-  { item, showResponseDivider }: { item: ErrorActivity; showResponseDivider: boolean },
-): ReactElement {
+function ErrorRow({ item }: { item: ErrorActivity }): ReactElement {
   return (
     <article className="chat-row inline-error-row">
-      {showResponseDivider ? <ResponseDivider /> : null}
       {item.text}
     </article>
   );

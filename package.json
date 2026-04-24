@@ -2,7 +2,7 @@
   "name": "acp-client",
   "displayName": "ACP Client",
   "description": "Agent Client Protocol client for VS Code — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "publisher": "formulahendry",
   "license": "MIT",
   "icon": "resources/icon.png",
@@ -134,6 +134,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "acp.openSettings",
+        "title": "ACP Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "acp.restartAgent",
         "title": "ACP: Restart Agent",
         "icon": "$(debug-restart)"
@@ -153,7 +158,13 @@
         },
         {
           "command": "acp.browseRegistry",
-          "when": "view == acp-sessions"
+          "when": "view == acp-sessions",
+          "group": "navigation@3"
+        },
+        {
+          "command": "acp.openSettings",
+          "when": "view == acp-sessions",
+          "group": "z_acp@1"
         },
         {
           "command": "acp.newConversation",
@@ -176,16 +187,24 @@
           "group": "navigation@4"
         },
         {
-          "command": "acp.showLog",
-          "when": "view == acp-chat"
-        },
-        {
-          "command": "acp.showTraffic",
-          "when": "view == acp-chat"
+          "command": "acp.openSettings",
+          "when": "view == acp-chat",
+          "group": "z_acp@1"
         },
         {
           "command": "acp.restartAgent",
-          "when": "view == acp-chat"
+          "when": "view == acp-chat",
+          "group": "z_acp@2"
+        },
+        {
+          "command": "acp.showLog",
+          "when": "view == acp-chat",
+          "group": "z_acp@3"
+        },
+        {
+          "command": "acp.showTraffic",
+          "when": "view == acp-chat",
+          "group": "z_acp@4"
         }
       ],
       "view/item/context": [
@@ -229,6 +248,11 @@
           "description": "Agent configurations. Each key is the agent name. Optional binaryPath takes priority, then binaryName is resolved from PATH, then command plus args is used as fallback.",
           "default": {
             "GitHub Copilot": {
+              "binaryName": "copilot",
+              "binaryArgs": [
+                "--acp"
+              ],
+              "binaryPath": "",
               "command": "npx",
               "args": [
                 "@github/copilot-language-server@latest",

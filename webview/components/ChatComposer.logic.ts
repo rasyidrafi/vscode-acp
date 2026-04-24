@@ -1,4 +1,9 @@
-import type { AvailableCommand } from '@agentclientprotocol/sdk';
+import type { AvailableCommand, SessionModeState } from '@agentclientprotocol/sdk';
+
+interface LocalCommandMeta {
+  kind: 'set-mode';
+  modeId: string;
+}
 
 export interface ComposerSendState {
   canSend: boolean;
@@ -51,6 +56,29 @@ export function commandPrompt(command: AvailableCommand): string {
   return `/${command.name}`;
 }
 
+export function createBuiltInCommands(modes: SessionModeState | null): AvailableCommand[] {
+  if (!modes || !Array.isArray(modes.availableModes) || modes.availableModes.length === 0) {
+    return [];
+  }
+
+  const commands: AvailableCommand[] = [];
+  const planMode = findMode(modes, /plan/i);
+  const defaultMode = findMode(modes, /^(default|code|auto)$/i)
+    ?? findMode(modes, /(default|code|auto|build)/i);
+
+  if (planMode) {
+    commands.push(localModeCommand('plan', 'Switch this session to plan mode', planMode.id));
+  }
+
+  if (defaultMode) {
+    commands.push(localModeCommand('default', `Switch this session to ${defaultMode.name} mode`, defaultMode.id));
+  }
+
+  return commands.filter((command, index, all) => (
+    all.findIndex((candidate) => candidate.name === command.name) === index
+  ));
+}
+
 export function commandNeedsInput(command: AvailableCommand): boolean {
   return command.input !== null && command.input !== undefined;
 }
@@ -79,4 +107,41 @@ function composerPlaceholder(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function localModeCommand(name: string, description: string, modeId: string): AvailableCommand {
+  return {
+    name,
+    description,
+    _meta: {
+      acpClientCommand: {
+        kind: 'set-mode',
+        modeId,
+      } satisfies LocalCommandMeta,
+    },
+  };
+}
+
+function findMode(modes: SessionModeState, pattern: RegExp): { id: string; name: string } | null {
+  const match = modes.availableModes.find((mode) => (
+    pattern.test(mode.id) || pattern.test(mode.name)
+  ));
+  return match ? { id: match.id, name: match.name } : null;
+}
+
+export function getLocalCommandMeta(command: AvailableCommand): LocalCommandMeta | null {
+  const meta = command._meta;
+  if (!isRecord(meta)) {
+    return null;
+  }
+
+  const clientCommand = meta.acpClientCommand;
+  if (!isRecord(clientCommand) || clientCommand.kind !== 'set-mode' || typeof clientCommand.modeId !== 'string') {
+    return null;
+  }
+
+  return {
+    kind: 'set-mode',
+    modeId: clientCommand.modeId,
+  };
 }

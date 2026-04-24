@@ -61,26 +61,22 @@ export type TimelineRow =
       kind: 'message';
       id: string;
       item: ConversationMessage;
-      showResponseDivider?: boolean;
       showAssistantMeta?: boolean;
     }
   | {
       kind: 'thought';
       id: string;
       item: ThoughtActivity;
-      showResponseDivider?: boolean;
     }
   | {
       kind: 'tool';
       id: string;
       item: ToolCallActivity;
-      showResponseDivider?: boolean;
     }
   | {
       kind: 'error';
       id: string;
       item: ErrorActivity;
-      showResponseDivider?: boolean;
     }
   | {
       kind: 'working';

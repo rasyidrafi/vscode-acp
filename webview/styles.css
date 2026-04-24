@@ -57,6 +57,12 @@ button:disabled {
   grid-template-rows: minmax(0, 1fr) auto;
 }
 
+.session-header-stack {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .session-strip {
   display: flex;
   align-items: center;
@@ -322,27 +328,6 @@ button:disabled {
 .message-row {
   position: relative;
   line-height: 1.55;
-}
-
-.response-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-}
-
-.response-divider span {
-  height: 1px;
-  flex: 1 1 auto;
-  background: color-mix(in srgb, var(--acp-border) 55%, transparent);
-}
-
-.response-divider small {
-  color: var(--acp-muted);
-  font-size: 0.68em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .message-content {
@@ -1253,11 +1238,26 @@ body.vscode-dark .message-copy-tooltip {
   box-shadow: 0 18px 42px rgb(0 0 0 / 28%);
 }
 
+.header-command-menu {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  z-index: 3;
+  max-height: 220px;
+}
+
 .command-menu-header {
   padding: 7px 9px;
   border-bottom: 1px solid var(--acp-border);
   color: var(--acp-muted);
   font-size: 0.84em;
+}
+
+.command-menu-empty {
+  padding: 10px 12px;
+  color: var(--acp-muted);
+  font-size: 0.92em;
 }
 
 .command-menu-item {

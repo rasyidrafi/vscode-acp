@@ -5,7 +5,9 @@ import {
   commandInputHint,
   commandNeedsInput,
   commandPrompt,
+  createBuiltInCommands,
   getComposerSendState,
+  getLocalCommandMeta,
   getSlashCommandQuery,
 } from './ChatComposer.logic';
 
@@ -64,6 +66,19 @@ describe('ChatComposer logic', () => {
     expect(commandNeedsInput(withInput)).toBe(true);
     expect(commandInputHint(withInput)).toBe('Describe what to review');
     expect(commandNeedsInput(command('status'))).toBe(false);
+  });
+
+  it('builds built-in slash commands from session modes', () => {
+    const commands = createBuiltInCommands({
+      currentModeId: 'default',
+      availableModes: [
+        { id: 'default', name: 'Default' },
+        { id: 'plan', name: 'Plan' },
+      ],
+    } as never);
+
+    expect(commands.map((command) => command.name)).toEqual(['plan', 'default']);
+    expect(getLocalCommandMeta(commands[0]!)).toEqual({ kind: 'set-mode', modeId: 'plan' });
   });
 });
 

@@ -4,26 +4,29 @@ import type { ReactElement } from 'react';
 import type { RankedCommand } from '../lib/commandSearch';
 
 interface ComposerCommandMenuProps {
+  className?: string;
   commands: RankedCommand[];
   activeIndex: number;
+  emptyStateText?: string;
   onSelect: (command: AvailableCommand) => void;
   onHover: (index: number) => void;
 }
 
 export function ComposerCommandMenu({
+  className,
   commands,
   activeIndex,
+  emptyStateText,
   onSelect,
   onHover,
-}: ComposerCommandMenuProps): ReactElement | null {
-  if (commands.length === 0) {
-    return null;
-  }
+}: ComposerCommandMenuProps): ReactElement {
 
   return (
-    <div className="command-menu" role="listbox" aria-label="Slash commands">
+    <div className={className ? `command-menu ${className}` : 'command-menu'} role="listbox" aria-label="Slash commands">
       <div className="command-menu-header">Commands</div>
-      {commands.map((result, index) => (
+      {commands.length === 0 ? (
+        <div className="command-menu-empty">{emptyStateText ?? 'No commands available'}</div>
+      ) : commands.map((result, index) => (
         <button
           key={result.command.name}
           type="button"

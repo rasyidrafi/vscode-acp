@@ -1,11 +1,13 @@
 import { Plug, X } from 'lucide-react';
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
 import { getPersistedState, postToExtension, setPersistedState } from './bridge';
 import { ActivePlanPanel } from './components/ActivePlanPanel';
 import { ChatComposer } from './components/ChatComposer';
+import type { ComposerMenuState } from './components/ChatComposer';
+import { ComposerCommandMenu } from './components/ComposerCommandMenu';
 import { MessageTimeline } from './components/MessageTimeline';
 import { SessionBanner } from './components/SessionBanner';
 import { createInitialState, toPersistedState } from './state';
@@ -17,6 +19,7 @@ export function App(): ReactElement {
     undefined,
     () => createInitialState(getPersistedState()),
   );
+  const [composerMenuState, setComposerMenuState] = useState<ComposerMenuState | null>(null);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -109,22 +112,37 @@ export function App(): ReactElement {
 
       {hasSession ? (
         <>
-          <SessionBanner
-            session={state.session}
-            modes={state.modes}
-            models={state.models}
-            onModeChange={(modeId) => postToExtension({ type: 'setMode', modeId })}
-            onModelChange={(modelId) => postToExtension({ type: 'setModel', modelId })}
-          />
+          <div className="session-header-stack">
+            {composerMenuState ? (
+              <ComposerCommandMenu
+                className="header-command-menu"
+                commands={composerMenuState.commands}
+                activeIndex={composerMenuState.activeIndex}
+                emptyStateText="No commands available for this agent"
+                onHover={composerMenuState.onHover}
+                onSelect={composerMenuState.onSelect}
+              />
+            ) : null}
+            <SessionBanner
+              session={state.session}
+              modes={state.modes}
+              models={state.models}
+              onModeChange={(modeId) => postToExtension({ type: 'setMode', modeId })}
+              onModelChange={(modelId) => postToExtension({ type: 'setModel', modelId })}
+            />
+          </div>
           <ChatComposer
             hasSession={hasSession}
             turnInProgress={state.turnInProgress}
             availableCommands={state.availableCommands}
+            modes={state.modes}
             attachedFiles={state.attachedFiles}
             onSubmit={submitPrompt}
             onCancel={cancelTurn}
             onAttachFile={() => postToExtension({ type: 'executeCommand', command: 'acp.attachFile' })}
             onRemoveAttachment={(path) => dispatch({ type: 'removeAttachment', path })}
+            onModeChange={(modeId) => postToExtension({ type: 'setMode', modeId })}
+            onCommandMenuChange={setComposerMenuState}
           />
         </>
       ) : null}

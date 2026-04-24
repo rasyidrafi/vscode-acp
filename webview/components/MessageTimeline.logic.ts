@@ -26,20 +26,8 @@ function buildRows(
 ): TimelineRow[] {
   const rows: TimelineRow[] = [];
   const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
-  const awaitingResponseStartByOrder = new Set<number>();
-  let nextAwaiting = false;
 
   for (const item of mergedItems) {
-    if (item.kind === 'message' && item.role === 'user') {
-      nextAwaiting = true;
-    } else if (nextAwaiting) {
-      awaitingResponseStartByOrder.add(item.order);
-      nextAwaiting = false;
-    }
-  }
-
-  for (const item of mergedItems) {
-    const showResponseDivider = awaitingResponseStartByOrder.has(item.order);
     switch (item.kind) {
       case 'message':
         if (item.role === 'user') {
@@ -59,7 +47,6 @@ function buildRows(
           kind: 'message',
           id: item.id,
           item,
-          showResponseDivider,
           showAssistantMeta: item.role === 'assistant' && !isFollowedByAssistantItem,
         });
         break;
@@ -68,7 +55,6 @@ function buildRows(
           kind: 'thought',
           id: item.id,
           item,
-          showResponseDivider,
         });
         break;
       case 'toolCall':
@@ -76,7 +62,6 @@ function buildRows(
           kind: 'tool',
           id: item.id,
           item,
-          showResponseDivider,
         });
         break;
       case 'error':
@@ -84,7 +69,6 @@ function buildRows(
           kind: 'error',
           id: item.id,
           item,
-          showResponseDivider,
         });
         break;
     }
@@ -106,26 +90,22 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
     case 'message':
       return previous.kind === 'message' &&
         previous.item === next.item &&
-        previous.showResponseDivider === next.showResponseDivider &&
         previous.showAssistantMeta === next.showAssistantMeta
         ? previous
         : next;
     case 'thought':
       return previous.kind === 'thought' &&
-        previous.item === next.item &&
-        previous.showResponseDivider === next.showResponseDivider
+        previous.item === next.item
         ? previous
         : next;
     case 'tool':
       return previous.kind === 'tool' &&
-        previous.item === next.item &&
-        previous.showResponseDivider === next.showResponseDivider
+        previous.item === next.item
         ? previous
         : next;
     case 'error':
       return previous.kind === 'error' &&
-        previous.item === next.item &&
-        previous.showResponseDivider === next.showResponseDivider
+        previous.item === next.item
         ? previous
         : next;
     case 'working':

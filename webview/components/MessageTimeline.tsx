@@ -1,4 +1,4 @@
-import { Check, Copy, ChevronRight, ChevronDown, Settings, Pencil, FilePlus, BookOpen, Terminal, Folder, Search } from 'lucide-react';
+import { Check, Copy, ChevronRight, ChevronDown, Settings, Pencil, FilePlus, BookOpen, Terminal, Folder, Search, Brain } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -209,27 +209,42 @@ function ThoughtRow(
     setIsOpen(!item.collapsed);
   }, [item.collapsed]);
 
+  function handleHeaderClick(): void {
+    setIsOpen(!isOpen);
+  }
+
   return (
     <article className="chat-row thought-row">
       {showResponseDivider ? <ResponseDivider /> : null}
-      <details
-        className="thought-details"
-        open={isOpen}
-        onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}
+      <div
+        className="thought-row-header"
+        onClick={handleHeaderClick}
+        onKeyDown={(e) => e.key === 'Enter' && handleHeaderClick()}
+        role="button"
+        tabIndex={0}
       >
-        <summary className="thought-summary">
-          <span className="thought-chevron" aria-hidden="true">
-            <ChevronRight className="chevron-right" size={12} />
-            <ChevronDown className="chevron-down" size={12} />
-          </span>
-          <span className="thought-label">Thought</span>
-        </summary>
-      </details>
-      {isOpen ? (
+        <div className="thought-row-visual">
+          <div className={`thought-row-icon-layer${isOpen ? ' hidden' : ''}`} aria-hidden="true">
+            <Brain size={14} />
+          </div>
+          <div className={`thought-row-chevron-layer${isOpen ? ' visible' : ''}`} aria-hidden="true">
+            <ChevronRight
+              size={12}
+              style={{
+                display: 'inline-block',
+                transform: isOpen ? 'rotate(90deg)' : 'none',
+                transition: 'transform 0.1s ease',
+              }}
+            />
+          </div>
+        </div>
+        <span className="thought-label">Thought</span>
+      </div>
+      {isOpen && (
         <div className="thought-scroll-container">
           <div className="thought-content">{text}</div>
         </div>
-      ) : null}
+      )}
     </article>
   );
 }

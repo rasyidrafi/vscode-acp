@@ -576,49 +576,71 @@ body.vscode-dark .message-copy-tooltip {
   min-width: 0;
 }
 
-.thought-summary {
+.thought-row-header {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 4px 0;
-  list-style: none;
-  color: var(--acp-muted);
-  font-weight: 500;
   user-select: none;
-  max-width: 100%;
   min-width: 0;
+  width: 100%;
 }
 
-.thought-summary::-webkit-details-marker {
-  display: none;
+.thought-row-header:hover .thought-label {
+  color: var(--vscode-foreground);
 }
 
-.thought-chevron {
-  flex: 0 0 auto;
+.thought-row-visual {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.thought-row-icon-layer,
+.thought-row-chevron-layer {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  transition: opacity 0.1s ease;
+}
+
+.thought-row-icon-layer {
   color: var(--acp-muted);
+  opacity: 1;
 }
 
-.thought-chevron .chevron-down {
-  display: none;
+.thought-row-chevron-layer {
+  color: var(--acp-muted);
+  opacity: 0;
 }
 
-.thought-details[open] .thought-chevron .chevron-right {
-  display: none;
+/* Hover swap logic */
+.thought-row .thought-row-header:hover .thought-row-icon-layer {
+  opacity: 0;
 }
 
-.thought-details[open] .thought-chevron .chevron-down {
-  display: inline-block;
+.thought-row .thought-row-header:hover .thought-row-chevron-layer {
+  opacity: 1;
+}
+
+/* Expanded state: chevron always visible, icon hidden */
+.thought-row-icon-layer.hidden {
+  opacity: 0 !important;
+}
+
+.thought-row-chevron-layer.visible {
+  opacity: 1 !important;
 }
 
 .thought-label {
   font-size: 0.9em;
-  opacity: 0.8;
+  font-weight: 500;
+  color: var(--acp-muted);
+  transition: color 0.1s ease;
 }
 
 .thought-scroll-container {

@@ -316,9 +316,7 @@ function ToolCallRow(
                 <pre>{item.output}</pre>
               </ToolSection>
             ) : item.detail ? (
-              <ToolSection label="Detail">
-                <pre>{item.detail}</pre>
-              </ToolSection>
+              <div className="thought-content" style={{ padding: '0 0 8px 0' }}>{item.detail}</div>
             ) : null}
           </div>
         </div>

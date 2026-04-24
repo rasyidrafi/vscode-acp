@@ -151,7 +151,7 @@ describe('webview state reducer', () => {
     expect(updated.activities[0]).toMatchObject({
       kind: 'toolCall',
       id: 'tool-read-1',
-      title: 'Read file',
+      title: 'Reading file',
       status: 'running',
       detail: 'Reading src/index.ts',
     });
@@ -193,7 +193,7 @@ describe('webview state reducer', () => {
     expect(state.activities[0]).toMatchObject({
       kind: 'toolCall',
       id: 'tool-write-2',
-      title: 'Changed files',
+      title: 'Edited files',
       detail: 'src/core/AgentManager.ts',
       status: 'completed',
     });
@@ -215,7 +215,7 @@ describe('webview state reducer', () => {
     expect(state.activities[0]).toMatchObject({
       kind: 'toolCall',
       id: 'tool-write-1',
-      title: 'Changed files',
+      title: 'Failed to edit files',
       status: 'failed',
       detail: 'top-level text',
     });

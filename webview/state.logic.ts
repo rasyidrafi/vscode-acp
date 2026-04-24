@@ -571,7 +571,7 @@ function deriveToolCallPresentation(
     if (status === 'running' || status === 'in_progress') {
       title = 'Running command';
     } else if (status === 'failed') {
-      title = 'Command failed';
+      title = 'Failed to run command';
     }
     return {
       title,
@@ -582,9 +582,9 @@ function deriveToolCallPresentation(
   if (lowerTitle.includes('read') || update.kind === 'read' || lowerTitle.includes('view')) {
     let title = 'Read file';
     if (status === 'running' || status === 'in_progress') {
-      title = 'Viewing file';
+      title = 'Reading file';
     } else if (status === 'completed') {
-      title = 'Viewed file';
+      title = 'Read file';
     } else if (status === 'failed') {
       title = 'Failed to read file';
     }
@@ -604,7 +604,7 @@ function deriveToolCallPresentation(
     lowerTitle.includes('patch') ||
     update.kind === 'edit'
   ) {
-    let title = 'Changed files';
+    let title = 'Edited files';
     if (status === 'running' || status === 'in_progress') {
       title = 'Editing files';
     } else if (status === 'completed') {
@@ -628,7 +628,7 @@ function deriveToolCallPresentation(
     if (status === 'running' || status === 'in_progress') {
       title = 'Searching project';
     } else if (status === 'failed') {
-      title = 'Search failed';
+      title = 'Failed to search project';
     }
     const query = extractSearchQuery(update);
     return {

@@ -98,29 +98,29 @@ function MessageRow(
     showAssistantMeta,
   }: { item: ConversationMessage; showResponseDivider: boolean; showAssistantMeta: boolean },
 ): ReactElement {
-  const canCopy = showAssistantMeta && !item.streaming && item.text.trim().length > 0;
-  const renderedText = item.role === 'assistant' && !item.streaming && item.text.trim().length === 0
+  const isAssistant = item.role === 'assistant';
+  const showMeta = !isAssistant || showAssistantMeta;
+  const canCopy = showMeta && !item.streaming && item.text.trim().length > 0;
+  const renderedText = isAssistant && !item.streaming && item.text.trim().length === 0
     ? '(empty response)'
     : item.text;
-  const timestamp = showAssistantMeta ? formatMessageTime(item.createdAt) : null;
+  const timestamp = showMeta ? formatMessageTime(item.createdAt) : null;
 
   return (
     <article className={`chat-row message-row ${item.role}`}>
       {showResponseDivider ? <ResponseDivider /> : null}
       <div className="message-content">
-        {item.role === 'assistant' ? (
-          <>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
-            {showAssistantMeta ? (
-              <div className="message-meta assistant-meta">
-                {timestamp ? <span>{timestamp}</span> : null}
-                {canCopy ? <MessageCopyButton text={item.text} /> : null}
-              </div>
-            ) : null}
-          </>
+        {isAssistant ? (
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
         ) : (
           <p>{renderedText}</p>
         )}
+        {showMeta ? (
+          <div className={`message-meta ${isAssistant ? 'assistant-meta' : 'user-meta'}`}>
+            {timestamp ? <span>{timestamp}</span> : null}
+            {canCopy ? <MessageCopyButton text={item.text} /> : null}
+          </div>
+        ) : null}
         {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
       </div>
     </article>
@@ -203,20 +203,33 @@ function ThoughtRow(
   const text = item.text.trim() || (item.streaming ? 'Thinking' : 'Thought');
 
   return (
-    <article className="chat-row thought-card">
+    <article className="chat-row thought-row">
       {showResponseDivider ? <ResponseDivider /> : null}
-      <details className="thought-panel" open={!item.collapsed}>
-        <summary>
-          <span className="thought-row-icon" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <rect x="3.5" y="4" width="9" height="6.5" rx="2.2" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M6 10.5v1.5M10 10.5v1.5M6.2 6.7h.01M9.8 6.7h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M6 2.8 5.4 4M10 2.8l.6 1.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <details className="thought-details" open={!item.collapsed}>
+        <summary className="thought-summary">
+          <span className="thought-chevron" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6 4l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chevron-right"
+              />
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chevron-down"
+              />
             </svg>
           </span>
-          <span>{item.streaming ? 'Thinking' : 'Thought'}</span>
+          <span className="thought-label">{item.streaming ? 'Thinking' : 'Thought'}</span>
         </summary>
-        <div className="thought-body">{text}</div>
+        <div className="thought-content">{text}</div>
       </details>
     </article>
   );

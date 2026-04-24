@@ -444,6 +444,9 @@ button:disabled {
 }
 
 .user-meta {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
   opacity: 1;
 }
 
@@ -557,50 +560,68 @@ body.vscode-dark .message-copy-tooltip {
   box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
 }
 
-.thought-card,
+.thought-row,
 .tool-card {
   align-self: flex-start;
   width: 100%;
 }
 
-.thought-panel {
-  border: 1px solid var(--acp-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--acp-surface-soft) 36%, var(--vscode-editor-background));
+.thought-details {
+  border: 0;
+  background: transparent;
   overflow: hidden;
 }
 
-.thought-panel summary {
+.thought-summary {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 4px;
+  padding: 4px 0;
   list-style: none;
-  color: var(--vscode-foreground);
+  color: var(--acp-muted);
   font-weight: 500;
+  user-select: none;
 }
 
-.thought-panel summary::-webkit-details-marker {
+.thought-summary::-webkit-details-marker {
   display: none;
 }
 
-.thought-panel[open] summary {
-  border-bottom: 1px solid color-mix(in srgb, var(--acp-border) 55%, transparent);
-}
-
-.thought-row-icon {
+.thought-chevron {
   flex: 0 0 auto;
-  color: var(--vscode-foreground);
-  opacity: 0.92;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--acp-muted);
 }
 
-.thought-body {
-  padding: 10px 12px 12px;
-  color: var(--acp-muted);
+.thought-chevron .chevron-down {
+  display: none;
+}
+
+.thought-details[open] .thought-chevron .chevron-right {
+  display: none;
+}
+
+.thought-details[open] .thought-chevron .chevron-down {
+  display: block;
+}
+
+.thought-label {
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.thought-content {
+  padding: 4px 0 8px 20px;
+  color: color-mix(in srgb, var(--acp-muted) 85%, transparent);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.5;
+  font-size: 0.95em;
 }
 
 .tool-card {

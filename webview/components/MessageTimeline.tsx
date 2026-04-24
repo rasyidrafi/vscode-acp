@@ -68,7 +68,7 @@ export function MessageTimeline({ messages, activities, turnInProgress }: Messag
 function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
   switch (row.kind) {
     case 'message':
-      return <MessageRow item={row.item} />;
+      return <MessageRow item={row.item} showResponseDivider={row.showResponseDivider === true} />;
     case 'work':
       return <WorkRow items={row.items} />;
     case 'error':
@@ -83,9 +83,14 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
   }
 }
 
-function MessageRow({ item }: { item: ConversationMessage }): ReactElement {
+function MessageRow(
+  { item, showResponseDivider }: { item: ConversationMessage; showResponseDivider: boolean },
+): ReactElement {
   const [copied, setCopied] = useState(false);
   const canCopy = item.role === 'assistant' && !item.streaming && item.text.trim().length > 0;
+  const renderedText = item.role === 'assistant' && !item.streaming && item.text.trim().length === 0
+    ? '(empty response)'
+    : item.text;
 
   async function copyMessage(): Promise<void> {
     if (!canCopy || !navigator.clipboard) {
@@ -98,12 +103,19 @@ function MessageRow({ item }: { item: ConversationMessage }): ReactElement {
 
   return (
     <article className={`chat-row message-row ${item.role}`}>
+      {item.role === 'assistant' && showResponseDivider ? (
+        <div className="response-divider" aria-hidden="true">
+          <span />
+          <small>Response</small>
+          <span />
+        </div>
+      ) : null}
       <div className="message-content">
-        {item.role === 'assistant' ? <div className="message-eyebrow">Response</div> : null}
+        {item.role === 'assistant' ? <div className="message-eyebrow">Assistant</div> : <div className="message-eyebrow">You</div>}
         {item.role === 'assistant' ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{item.text}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{renderedText}</ReactMarkdown>
         ) : (
-          <p>{item.text}</p>
+          <p>{renderedText}</p>
         )}
         {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
       </div>
@@ -127,6 +139,7 @@ function WorkRow({ items }: { items: Array<ThoughtActivity | ToolCallActivity> }
   const hasOverflow = items.length > 6;
   const visibleItems = hasOverflow && !expanded ? items.slice(-6) : items;
   const hiddenCount = items.length - visibleItems.length;
+  const summary = summarizeWorkItems(items);
 
   return (
     <section className="chat-row work-row" aria-label="Agent work">
@@ -141,6 +154,7 @@ function WorkRow({ items }: { items: Array<ThoughtActivity | ToolCallActivity> }
           </button>
         ) : null}
       </div>
+      {summary ? <p className="work-row-summary">{summary}</p> : null}
       <div className="work-row-list">
         {visibleItems.map((item) => (
           item.kind === 'thought' ? <ThoughtRow key={item.id} item={item} /> : <ToolCallRow key={item.id} item={item} />
@@ -188,4 +202,22 @@ function ErrorRow({ item }: { item: ErrorActivity }): ReactElement {
       {item.text}
     </article>
   );
+}
+
+function summarizeWorkItems(items: Array<ThoughtActivity | ToolCallActivity>): string | null {
+  const labels = items.flatMap((item) => {
+    if (item.kind === 'thought') {
+      return item.streaming ? ['Thinking'] : [];
+    }
+    return [item.title];
+  });
+  const uniqueLabels = [...new Set(labels)];
+  if (uniqueLabels.length === 0) {
+    return null;
+  }
+  const visibleLabels = uniqueLabels.slice(0, 3);
+  const remainder = uniqueLabels.length - visibleLabels.length;
+  return remainder > 0
+    ? `${visibleLabels.join(' · ')} +${remainder} more`
+    : visibleLabels.join(' · ');
 }

@@ -29,6 +29,7 @@ function buildRows(
   const rows: TimelineRow[] = [];
   let workItems: WorkItem[] = [];
   const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
+  let previousNonWorkKind: 'message-user' | 'message-assistant' | 'activity' | 'error' | null = null;
 
   function flushWorkItems(): void {
     if (workItems.length === 0) {
@@ -53,11 +54,18 @@ function buildRows(
         break;
       case 'message':
         flushWorkItems();
-        rows.push({ kind: 'message', id: item.id, item });
+        rows.push({
+          kind: 'message',
+          id: item.id,
+          item,
+          showResponseDivider: item.role === 'assistant' && previousNonWorkKind !== 'message-assistant',
+        });
+        previousNonWorkKind = item.role === 'assistant' ? 'message-assistant' : 'message-user';
         break;
       case 'error':
         flushWorkItems();
         rows.push({ kind: 'error', id: item.id, item });
+        previousNonWorkKind = 'error';
         break;
     }
   }
@@ -78,7 +86,11 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
 
   switch (next.kind) {
     case 'message':
-      return previous.kind === 'message' && previous.item === next.item ? previous : next;
+      return previous.kind === 'message' &&
+        previous.item === next.item &&
+        previous.showResponseDivider === next.showResponseDivider
+        ? previous
+        : next;
     case 'error':
       return previous.kind === 'error' && previous.item === next.item ? previous : next;
     case 'work':

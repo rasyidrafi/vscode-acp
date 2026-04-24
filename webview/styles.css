@@ -280,6 +280,27 @@ button:disabled {
   line-height: 1.55;
 }
 
+.response-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.response-divider span {
+  height: 1px;
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--acp-border) 55%, transparent);
+}
+
+.response-divider small {
+  color: var(--acp-muted);
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .message-content {
   min-width: 0;
 }
@@ -453,6 +474,13 @@ button:disabled {
 .work-row-list {
   display: grid;
   gap: 4px;
+}
+
+.work-row-summary {
+  margin: -2px 0 2px;
+  color: var(--acp-muted);
+  font-size: 0.82em;
+  line-height: 1.45;
 }
 
 .work-item + .work-item {

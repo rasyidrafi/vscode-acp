@@ -58,6 +58,7 @@ export type TimelineRow =
       kind: 'message';
       id: string;
       item: ConversationMessage;
+      showResponseDivider?: boolean;
     }
   | {
       kind: 'work';

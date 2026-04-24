@@ -117,8 +117,17 @@ function MessageRow(
         )}
         {showMeta ? (
           <div className={`message-meta ${isAssistant ? 'assistant-meta' : 'user-meta'}`}>
-            {timestamp ? <span>{timestamp}</span> : null}
-            {canCopy ? <MessageCopyButton text={item.text} /> : null}
+            {isAssistant ? (
+              <>
+                {timestamp ? <span>{timestamp}</span> : null}
+                {canCopy ? <MessageCopyButton text={item.text} /> : null}
+              </>
+            ) : (
+              <>
+                {canCopy ? <MessageCopyButton text={item.text} /> : null}
+                {timestamp ? <span>{timestamp}</span> : null}
+              </>
+            )}
           </div>
         ) : null}
         {item.streaming ? <span className="streaming-dot" aria-label="Streaming" /> : null}
@@ -201,11 +210,20 @@ function ThoughtRow(
   { item, showResponseDivider }: { item: ThoughtActivity; showResponseDivider: boolean },
 ): ReactElement {
   const text = item.text.trim() || (item.streaming ? 'Thinking' : 'Thought');
+  const [isOpen, setIsOpen] = useState(!item.collapsed);
+
+  useEffect(() => {
+    setIsOpen(!item.collapsed);
+  }, [item.collapsed]);
 
   return (
     <article className="chat-row thought-row">
       {showResponseDivider ? <ResponseDivider /> : null}
-      <details className="thought-details" open={!item.collapsed}>
+      <details
+        className="thought-details"
+        open={isOpen}
+        onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}
+      >
         <summary className="thought-summary">
           <span className="thought-chevron" aria-hidden="true">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -229,8 +247,12 @@ function ThoughtRow(
           </span>
           <span className="thought-label">{item.streaming ? 'Thinking' : 'Thought'}</span>
         </summary>
-        <div className="thought-content">{text}</div>
       </details>
+      {isOpen ? (
+        <div className="thought-scroll-container">
+          <div className="thought-content">{text}</div>
+        </div>
+      ) : null}
     </article>
   );
 }

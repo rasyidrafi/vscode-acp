@@ -223,7 +223,7 @@ function appendTextChunk(
     id,
     text,
     streaming: true,
-    collapsed: false,
+    collapsed: true,
   }, {
     currentThoughtId: id,
   });

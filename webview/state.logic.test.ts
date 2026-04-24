@@ -128,7 +128,7 @@ describe('webview state reducer', () => {
       kind: 'thought',
       text: 'Double-checking',
       streaming: true,
-      collapsed: false,
+      collapsed: true,
     });
   });
 

@@ -48,6 +48,7 @@ describe('ChatWebviewProvider', () => {
       setModel: vi.fn(),
       sendPrompt: vi.fn(),
       cancelTurn: vi.fn(),
+      on: vi.fn(),
     };
     const updateHandler = new SessionUpdateHandler();
     const provider = new ChatWebviewProvider(
@@ -113,6 +114,7 @@ describe('ChatWebviewProvider', () => {
       setModel: vi.fn(),
       sendPrompt: vi.fn(),
       cancelTurn: vi.fn(),
+      on: vi.fn(),
     };
     const provider = new ChatWebviewProvider(
       { fsPath: '/extension' } as never,
@@ -136,5 +138,47 @@ describe('ChatWebviewProvider', () => {
       hasChatContent: true,
     });
     expect(provider.hasChatContent).toBe(true);
+  });
+
+  it('updates acp.turnInProgress context on busy-changed and active-session-changed', () => {
+    let busyListener: (sessionId: string, busy: boolean) => void = () => {};
+    let activeSessionListener: (sessionId: string | null) => void = () => {};
+
+    const sessionManager = {
+      getActiveSessionId: vi.fn(() => 'session-1'),
+      getSession: vi.fn((id) => ({ sessionId: id, busy: id === 'session-2' })),
+      getActiveAgentName: vi.fn(() => 'Codex'),
+      on: vi.fn((event, listener) => {
+        if (event === 'busy-changed') { busyListener = listener; }
+        if (event === 'active-session-changed') { activeSessionListener = listener; }
+      }),
+    };
+
+    new ChatWebviewProvider(
+      { fsPath: '/extension' } as never,
+      sessionManager as never,
+      new SessionUpdateHandler(),
+    );
+
+    // Test busy-changed for active session
+    busyListener('session-1', true);
+    expect(executeCommandMock).toHaveBeenCalledWith('setContext', 'acp.turnInProgress', true);
+
+    // Test busy-changed for background session (should NOT update context)
+    executeCommandMock.mockClear();
+    busyListener('session-2', true);
+    expect(executeCommandMock).not.toHaveBeenCalled();
+
+    // Test active-session-changed to an idle session
+    executeCommandMock.mockClear();
+    sessionManager.getActiveSessionId.mockReturnValue('session-1');
+    activeSessionListener('session-1');
+    expect(executeCommandMock).toHaveBeenCalledWith('setContext', 'acp.turnInProgress', false);
+
+    // Test active-session-changed to a busy session
+    executeCommandMock.mockClear();
+    sessionManager.getActiveSessionId.mockReturnValue('session-2');
+    activeSessionListener('session-2');
+    expect(executeCommandMock).toHaveBeenCalledWith('setContext', 'acp.turnInProgress', true);
   });
 });

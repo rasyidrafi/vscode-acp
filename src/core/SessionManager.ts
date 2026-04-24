@@ -23,6 +23,7 @@ export interface SessionInfo {
   modes: SessionModeState | null;
   models: SessionModelState | null;
   availableCommands: AvailableCommand[];
+  busy: boolean;
 }
 
 /**
@@ -282,6 +283,7 @@ export class SessionManager extends EventEmitter {
       modes: sessionResponse.modes ?? null,
       models: getSessionModels(sessionResponse),
       availableCommands: [],
+      busy: false,
     };
   }
 
@@ -305,13 +307,21 @@ export class SessionManager extends EventEmitter {
       { type: 'text', text },
     ];
 
-    const response = await connInfo.connection.prompt({
-      sessionId,
-      prompt,
-    });
+    session.busy = true;
+    this.emit('busy-changed', sessionId, true);
 
-    log(`Prompt response: stopReason=${response.stopReason}`);
-    return response;
+    try {
+      const response = await connInfo.connection.prompt({
+        sessionId,
+        prompt,
+      });
+
+      log(`Prompt response: stopReason=${response.stopReason}`);
+      return response;
+    } finally {
+      session.busy = false;
+      this.emit('busy-changed', sessionId, false);
+    }
   }
 
   /**
@@ -397,6 +407,13 @@ export class SessionManager extends EventEmitter {
   /** Check if a specific agent is currently connected. */
   isAgentConnected(agentName: string): boolean {
     return this.agentSessions.has(agentName);
+  }
+
+  /** Check if a specific agent is currently busy. */
+  isAgentBusy(agentName: string): boolean {
+    const sessionId = this.agentSessions.get(agentName);
+    if (!sessionId) { return false; }
+    return this.sessions.get(sessionId)?.busy ?? false;
   }
 
   /** Get all connected agent names. */

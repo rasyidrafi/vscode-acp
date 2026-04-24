@@ -11,6 +11,7 @@ class AgentTreeItem extends vscode.TreeItem {
     public readonly agentName: string,
     public readonly connected: boolean,
     public readonly active: boolean,
+    public readonly busy: boolean,
   ) {
     super(agentName, vscode.TreeItemCollapsibleState.None);
 
@@ -18,17 +19,17 @@ class AgentTreeItem extends vscode.TreeItem {
       this.label = `${agentName} (active)`;
       this.contextValue = 'agent-active';
       this.iconPath = new vscode.ThemeIcon(
-        'record',
-        new vscode.ThemeColor('testing.iconPassed'),
+        busy ? 'sync~spin' : 'record',
+        new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
       );
-      this.description = 'active';
+      this.description = busy ? 'busy' : 'active';
     } else if (connected) {
       this.contextValue = 'agent-connected';
       this.iconPath = new vscode.ThemeIcon(
-        'circle-filled',
-        new vscode.ThemeColor('testing.iconPassed'),
+        busy ? 'sync~spin' : 'circle-filled',
+        new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
       );
-      this.description = 'connected';
+      this.description = busy ? 'busy' : 'connected';
     } else {
       this.contextValue = 'agent-disconnected';
       this.iconPath = new vscode.ThemeIcon('circle-outline');
@@ -45,7 +46,7 @@ class AgentTreeItem extends vscode.TreeItem {
     }
 
     this.tooltip = connected
-      ? `${agentName} — connected\nClick to open chat`
+      ? `${agentName} — ${busy ? 'busy' : 'connected'}\nClick to open chat`
       : `${agentName} — not connected\nUse the plug icon to connect`;
   }
 }
@@ -62,6 +63,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeIte
     this.sessionManager.on('agent-connected', () => this.refresh());
     this.sessionManager.on('agent-disconnected', () => this.refresh());
     this.sessionManager.on('active-session-changed', () => this.refresh());
+    this.sessionManager.on('busy-changed', () => this.refresh());
   }
 
   refresh(): void {
@@ -82,6 +84,7 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeIte
       name,
       this.sessionManager.isAgentConnected(name),
       activeAgent === name,
+      this.sessionManager.isAgentBusy(name),
     ));
   }
 

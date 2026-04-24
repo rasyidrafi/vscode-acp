@@ -63,6 +63,7 @@ function createSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     modes: null,
     models: null,
     availableCommands: [],
+    busy: false,
     ...overrides,
   };
 }

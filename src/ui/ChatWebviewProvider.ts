@@ -45,6 +45,17 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
       this.handleSessionUpdate(update);
     };
     this.sessionUpdateHandler.addListener(this.updateListener);
+
+    // Sync turnInProgress context with active session state
+    this.sessionManager.on('busy-changed', (sessionId, busy) => {
+      if (sessionId === this.sessionManager.getActiveSessionId()) {
+        void vscode.commands.executeCommand('setContext', 'acp.turnInProgress', busy);
+      }
+    });
+    this.sessionManager.on('active-session-changed', (sessionId) => {
+      const busy = sessionId ? this.sessionManager.getSession(sessionId)?.busy ?? false : false;
+      void vscode.commands.executeCommand('setContext', 'acp.turnInProgress', busy);
+    });
   }
 
   resolveWebviewView(
@@ -157,7 +168,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
 
     // Tell webview we're processing
     this.postMessage({ type: 'promptStart' });
-    await vscode.commands.executeCommand('setContext', 'acp.turnInProgress', true);
 
     try {
       const response = await this.sessionManager.sendPrompt(activeId, text);
@@ -173,8 +183,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
         message: e.message || 'Prompt failed',
       });
       this.postMessage({ type: 'promptEnd', stopReason: 'error' });
-    } finally {
-      await vscode.commands.executeCommand('setContext', 'acp.turnInProgress', false);
     }
   }
 

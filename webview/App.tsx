@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
 import { getPersistedState, postToExtension, setPersistedState } from './bridge';
+import { ActivePlanPanel } from './components/ActivePlanPanel';
 import { ChatComposer } from './components/ChatComposer';
 import { MessageTimeline } from './components/MessageTimeline';
 import { SessionBanner } from './components/SessionBanner';
@@ -51,7 +52,7 @@ export function App(): ReactElement {
   return (
     <main className={hasSession ? 'app-shell' : 'app-shell no-session'}>
       <section className="timeline-shell">
-        {state.items.length === 0 ? (
+        {state.messages.length === 0 && state.activities.length === 0 ? (
           <div className={hasSession ? 'empty-state session-ready' : 'empty-state'}>
             <header className="empty-header">
               <div className="empty-welcome">
@@ -80,9 +81,17 @@ export function App(): ReactElement {
             ) : null}
           </div>
         ) : (
-          <MessageTimeline items={state.items} turnInProgress={state.turnInProgress} />
+          <MessageTimeline
+            messages={state.messages}
+            activities={state.activities}
+            turnInProgress={state.turnInProgress}
+          />
         )}
       </section>
+
+      {hasSession && state.activePlan ? (
+        <ActivePlanPanel plan={state.activePlan} />
+      ) : null}
 
       {state.error ? (
         <div className="error-banner">

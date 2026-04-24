@@ -1,7 +1,14 @@
 import type { AvailableCommand, SessionModeState } from '@agentclientprotocol/sdk';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
-import type { ChatItem, PlanEntry, ToolCallStatus } from '../src/shared/chatModel';
+import type {
+  ActivePlan,
+  ActivityItem,
+  ConversationMessage,
+  PlanEntry,
+  PlanEntryStatus,
+  ToolCallStatus,
+} from '../src/shared/chatModel';
 import { createInitialState, type WebviewState } from './state';
 
 export type WebviewAction =
@@ -70,7 +77,8 @@ function reduceExtensionMessage(
         currentThoughtId: null,
       });
     case 'error':
-      return appendItem(state, {
+      return appendActivity(state, {
+        order: nextOrder(state),
         kind: 'error',
         id: nextId(state, 'error'),
         text: message.message,
@@ -82,6 +90,7 @@ function reduceExtensionMessage(
         error: null,
         turnInProgress: false,
         attachedFiles: [],
+        activePlan: null,
       };
     case 'fileAttached':
       return {
@@ -147,7 +156,8 @@ function addUserPrompt(state: WebviewState, text: string): WebviewState {
     return state;
   }
 
-  return appendItem(state, {
+  return appendMessage(state, {
+    order: nextOrder(state),
     kind: 'message',
     id: nextId(state, 'user'),
     role: 'user',
@@ -171,16 +181,17 @@ function appendTextChunk(
 
   if (target === 'message') {
     const id = state.currentAssistantMessageId ?? nextId(state, 'assistant');
-    const existing = findItem(state.items, id, 'message');
+    const existing = findMessage(state.messages, id);
     if (existing) {
-      return replaceItem(state, id, {
+      return replaceMessage(state, id, {
         ...existing,
         text: existing.text + text,
         streaming: true,
       });
     }
 
-    return appendItem(state, {
+    return appendMessage(state, {
+      order: nextOrder(state),
       kind: 'message',
       id,
       role: 'assistant',
@@ -193,16 +204,17 @@ function appendTextChunk(
   }
 
   const id = state.currentThoughtId ?? nextId(state, 'thought');
-  const existing = findItem(state.items, id, 'thought');
+  const existing = findActivity(state.activities, id, 'thought');
   if (existing) {
-    return replaceItem(state, id, {
+    return replaceActivity(state, id, {
       ...existing,
       text: existing.text + text,
       streaming: true,
     });
   }
 
-  return appendItem(state, {
+  return appendActivity(state, {
+    order: nextOrder(state),
     kind: 'thought',
     id,
     text,
@@ -217,44 +229,56 @@ function upsertToolCall(state: WebviewState, update: StringRecord): WebviewState
   const id = typeof update.toolCallId === 'string' && update.toolCallId
     ? `tool-${update.toolCallId}`
     : nextId(state, 'tool');
-  const existing = findItem(state.items, id, 'toolCall');
-  const item: ChatItem = {
+  const existing = findActivity(state.activities, id, 'toolCall');
+  const presentation = deriveToolCallPresentation(update, {
+    fallbackTitle: existing?.title ?? 'Tool Call',
+    fallbackDetail: existing?.detail,
+  });
+  const item: ActivityItem = {
+    order: existing?.order ?? nextOrder(state),
     kind: 'toolCall',
     id,
-    title: typeof update.title === 'string' && update.title ? update.title : existing?.title ?? 'Tool Call',
+    title: presentation.title,
     status: normalizeToolStatus(update.status, existing?.status ?? 'pending'),
-    detail: getToolDetail(update) ?? existing?.detail,
+    detail: presentation.detail,
   };
 
-  return existing ? replaceItem(state, id, item) : appendItem(state, item);
+  return existing ? replaceActivity(state, id, item) : appendActivity(state, item);
 }
 
 function updateToolCall(state: WebviewState, update: StringRecord): WebviewState {
   const rawId = typeof update.toolCallId === 'string' && update.toolCallId ? update.toolCallId : 'unknown';
   const id = `tool-${rawId}`;
-  const existing = findItem(state.items, id, 'toolCall');
-  const item: ChatItem = {
+  const existing = findActivity(state.activities, id, 'toolCall');
+  const presentation = deriveToolCallPresentation(update, {
+    fallbackTitle: existing?.title ?? 'Tool Call',
+    fallbackDetail: existing?.detail,
+  });
+  const item: ActivityItem = {
+    order: existing?.order ?? nextOrder(state),
     kind: 'toolCall',
     id,
-    title: typeof update.title === 'string' && update.title
-      ? update.title
-      : existing?.title ?? 'Tool Call',
+    title: presentation.title,
     status: normalizeToolStatus(update.status, existing?.status ?? 'completed'),
-    detail: getToolDetail(update) ?? existing?.detail,
+    detail: presentation.detail,
   };
 
-  return existing ? replaceItem(state, id, item) : appendItem(state, item);
+  return existing ? replaceActivity(state, id, item) : appendActivity(state, item);
 }
 
 function upsertPlan(state: WebviewState, update: StringRecord): WebviewState {
   const entries = Array.isArray(update.entries) ? update.entries : [];
-  const item: ChatItem = {
-    kind: 'plan',
+  const item: ActivePlan = {
     id: 'plan-current',
+    explanation: typeof update.explanation === 'string' && update.explanation.trim()
+      ? update.explanation
+      : undefined,
     entries: entries.map((entry, index) => normalizePlanEntry(entry, index)),
   };
-  const existing = findItem(state.items, item.id, 'plan');
-  return existing ? replaceItem(state, item.id, item) : appendItem(state, item);
+  return {
+    ...state,
+    activePlan: item.entries.length > 0 ? item : null,
+  };
 }
 
 function updateAvailableCommands(state: WebviewState, commands: unknown): WebviewState {
@@ -282,12 +306,18 @@ function updateCurrentMode(state: WebviewState, currentModeId: unknown): Webview
 function finalizeStreamingItems(state: WebviewState): WebviewState {
   return {
     ...state,
-    items: state.items.map((item) => {
-      if ((item.kind === 'message' || item.kind === 'thought') && item.streaming) {
+    messages: state.messages.map((item) => {
+      if (item.streaming) {
+        return { ...item, streaming: false };
+      }
+      return item;
+    }),
+    activities: state.activities.map((item) => {
+      if (item.kind === 'thought' && item.streaming) {
         return {
           ...item,
           streaming: false,
-          ...(item.kind === 'thought' ? { collapsed: true } : undefined),
+          collapsed: true,
         };
       }
       return item;
@@ -295,34 +325,61 @@ function finalizeStreamingItems(state: WebviewState): WebviewState {
   };
 }
 
-function replaceItem<T extends ChatItem>(state: WebviewState, id: string, item: T): WebviewState {
+function replaceMessage(state: WebviewState, id: string, item: ConversationMessage): WebviewState {
   return {
     ...state,
-    items: state.items.map((current) => current.id === id ? item : current),
+    messages: state.messages.map((current) => current.id === id ? item : current),
   };
 }
 
-function appendItem(
+function replaceActivity(state: WebviewState, id: string, item: ActivityItem): WebviewState {
+  return {
+    ...state,
+    activities: state.activities.map((current) => current.id === id ? item : current),
+  };
+}
+
+function appendMessage(
   state: WebviewState,
-  item: ChatItem,
+  item: ConversationMessage,
   extra?: Partial<WebviewState>,
 ): WebviewState {
   return {
     ...state,
     ...extra,
-    items: [...state.items, item],
+    messages: [...state.messages, item],
+    nextOrder: state.nextOrder + 1,
     nextItemId: state.nextItemId + 1,
   };
 }
 
-function findItem<K extends ChatItem['kind']>(
-  items: ChatItem[],
+function appendActivity(
+  state: WebviewState,
+  item: ActivityItem,
+  extra?: Partial<WebviewState>,
+): WebviewState {
+  return {
+    ...state,
+    ...extra,
+    activities: [...state.activities, item],
+    nextOrder: state.nextOrder + 1,
+    nextItemId: state.nextItemId + 1,
+  };
+}
+
+function findMessage(
+  items: ConversationMessage[],
+  id: string,
+): ConversationMessage | undefined {
+  return items.find((item) => item.id === id);
+}
+
+function findActivity<K extends ActivityItem['kind']>(
+  items: ActivityItem[],
   id: string,
   kind: K,
-): Extract<ChatItem, { kind: K }> | undefined {
-  return items.find((item): item is Extract<ChatItem, { kind: K }> => (
-    item.id === id && item.kind === kind
-  ));
+): Extract<ActivityItem, { kind: K }> | undefined {
+  return items.find((item): item is Extract<ActivityItem, { kind: K }> => item.id === id && item.kind === kind);
 }
 
 function normalizeToolStatus(value: unknown, fallback: ToolCallStatus): ToolCallStatus {
@@ -346,13 +403,26 @@ function normalizePlanEntry(value: unknown, index: number): PlanEntry {
   const content =
     firstString(entry.content, entry.title, entry.description, entry.text) ??
     `Step ${index + 1}`;
-  const status = typeof entry.status === 'string' ? entry.status : undefined;
+  const status = normalizePlanStatus(entry.status);
 
   return {
     id: firstString(entry.id, entry.entryId) ?? `plan-${index}`,
     text: content,
-    completed: status === 'completed',
+    status,
   };
+}
+
+function normalizePlanStatus(value: unknown): PlanEntryStatus {
+  switch (value) {
+    case 'completed':
+      return 'completed';
+    case 'inProgress':
+    case 'in_progress':
+    case 'running':
+      return 'inProgress';
+    default:
+      return 'pending';
+  }
 }
 
 function getContentText(update: StringRecord): string | null {
@@ -391,6 +461,200 @@ function getToolDetail(update: StringRecord): string | undefined {
   return undefined;
 }
 
+function deriveToolCallPresentation(
+  update: StringRecord,
+  options: { fallbackTitle: string; fallbackDetail?: string },
+): { title: string; detail?: string } {
+  const rawTitle = firstString(update.title) ?? options.fallbackTitle;
+  const lowerTitle = rawTitle.toLowerCase();
+  const command = extractToolCommand(update);
+  const path = extractPrimaryPath(update);
+  const outputSummary = summarizeToolOutput(update);
+
+  if (command) {
+    return {
+      title: 'Ran command',
+      detail: command,
+    };
+  }
+
+  if (lowerTitle.includes('read')) {
+    return {
+      title: 'Read file',
+      detail: path ?? outputSummary ?? options.fallbackDetail,
+    };
+  }
+
+  if (
+    lowerTitle.includes('write') ||
+    lowerTitle.includes('edit') ||
+    lowerTitle.includes('create') ||
+    lowerTitle.includes('move') ||
+    lowerTitle.includes('rename') ||
+    lowerTitle.includes('delete') ||
+    lowerTitle.includes('patch')
+  ) {
+    return {
+      title: 'Changed files',
+      detail: path ?? outputSummary ?? options.fallbackDetail,
+    };
+  }
+
+  if (
+    lowerTitle.includes('search') ||
+    lowerTitle.includes('grep') ||
+    lowerTitle.includes('find')
+  ) {
+    return {
+      title: 'Searched project',
+      detail: extractSearchQuery(update) ?? outputSummary ?? options.fallbackDetail,
+    };
+  }
+
+  return {
+    title: rawTitle,
+    detail: outputSummary ?? options.fallbackDetail,
+  };
+}
+
+function extractToolCommand(update: StringRecord): string | undefined {
+  const rawInput = isRecord(update.rawInput) ? update.rawInput : undefined;
+  const candidates: unknown[] = [
+    update.command,
+    rawInput?.command,
+    rawInput?.cmd,
+  ];
+
+  for (const candidate of candidates) {
+    const command = normalizeCommandValue(candidate);
+    if (command) {
+      return command;
+    }
+  }
+
+  const executable = firstString(rawInput?.executable, rawInput?.program);
+  const args = normalizeCommandValue(rawInput?.args);
+  if (executable && args) {
+    return `${executable} ${args}`;
+  }
+  return executable ?? undefined;
+}
+
+function normalizeCommandValue(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const parts = value
+    .map((entry) => typeof entry === 'string' ? entry.trim() : '')
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
+function extractPrimaryPath(update: StringRecord): string | undefined {
+  const paths: string[] = [];
+  collectPaths(update, paths, new Set<string>(), 0);
+  return paths[0];
+}
+
+function collectPaths(
+  value: unknown,
+  paths: string[],
+  seen: Set<string>,
+  depth: number,
+): void {
+  if (depth > 4 || paths.length >= 6) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectPaths(entry, paths, seen, depth + 1);
+      if (paths.length >= 6) {
+        return;
+      }
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  for (const key of ['path', 'filePath', 'filename', 'newPath', 'oldPath', 'target']) {
+    const candidate = firstString(value[key]);
+    if (!candidate || !looksPathLike(candidate) || seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    paths.push(candidate);
+  }
+
+  for (const key of ['rawInput', 'rawOutput', 'content', 'item', 'input', 'result', 'changes']) {
+    if (key in value) {
+      collectPaths(value[key], paths, seen, depth + 1);
+    }
+  }
+}
+
+function looksPathLike(value: string): boolean {
+  return (
+    value.includes('/') ||
+    value.includes('\\') ||
+    value.startsWith('.') ||
+    /\.[a-z0-9]{1,12}$/iu.test(value)
+  );
+}
+
+function extractSearchQuery(update: StringRecord): string | undefined {
+  const rawInput = isRecord(update.rawInput) ? update.rawInput : undefined;
+  return firstString(
+    rawInput?.query,
+    rawInput?.pattern,
+    rawInput?.searchTerm,
+    rawInput?.term,
+  );
+}
+
+function summarizeToolOutput(update: StringRecord): string | undefined {
+  const path = extractPrimaryPath(update);
+  if (path) {
+    return path;
+  }
+
+  const rawOutput = update.rawOutput;
+  if (typeof rawOutput === 'string') {
+    return summarizeText(rawOutput);
+  }
+  if (isRecord(rawOutput)) {
+    return firstString(rawOutput.path, rawOutput.filePath)
+      ?? summarizeText(firstString(rawOutput.stdout, rawOutput.output, rawOutput.content));
+  }
+
+  return summarizeText(getToolDetail(update));
+}
+
+function summarizeText(value: string | undefined | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const lines = value
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const firstLine = lines[0];
+  if (!firstLine) {
+    return undefined;
+  }
+
+  return firstLine.length > 120 ? `${firstLine.slice(0, 117).trimEnd()}...` : firstLine;
+}
+
 function firstString(...values: unknown[]): string | undefined {
   return values.find((value): value is string => typeof value === 'string' && value.length > 0);
 }
@@ -399,14 +663,21 @@ function nextId(state: WebviewState, prefix: string): string {
   return `${prefix}-${state.nextItemId}`;
 }
 
+function nextOrder(state: WebviewState): number {
+  return state.nextOrder;
+}
+
 function emptyTimelineState(): Pick<
   WebviewState,
-  'items' | 'currentAssistantMessageId' | 'currentThoughtId' | 'nextItemId'
+  'messages' | 'activities' | 'activePlan' | 'currentAssistantMessageId' | 'currentThoughtId' | 'nextOrder' | 'nextItemId'
 > {
   return {
-    items: [],
+    messages: [],
+    activities: [],
+    activePlan: null,
     currentAssistantMessageId: null,
     currentThoughtId: null,
+    nextOrder: createInitialState().nextOrder,
     nextItemId: createInitialState().nextItemId,
   };
 }

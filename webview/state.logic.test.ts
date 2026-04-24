@@ -26,7 +26,7 @@ describe('webview state reducer', () => {
     });
 
     expect(state.turnInProgress).toBe(true);
-    expect(state.items).toEqual([
+    expect(state.messages).toEqual([
       expect.objectContaining({
         kind: 'message',
         role: 'user',
@@ -46,8 +46,8 @@ describe('webview state reducer', () => {
       content: { type: 'text', text: ' there' },
     }));
 
-    expect(second.items).toHaveLength(1);
-    expect(second.items[0]).toMatchObject({
+    expect(second.messages).toHaveLength(1);
+    expect(second.messages[0]).toMatchObject({
       kind: 'message',
       role: 'assistant',
       text: 'Hello there',
@@ -63,7 +63,7 @@ describe('webview state reducer', () => {
     const done = reduceWebviewState(thinking, extensionMessage({ type: 'promptEnd' }));
 
     expect(done.turnInProgress).toBe(false);
-    expect(done.items[0]).toMatchObject({
+    expect(done.activities[0]).toMatchObject({
       kind: 'thought',
       text: 'Inspecting files',
       streaming: false,
@@ -85,13 +85,55 @@ describe('webview state reducer', () => {
       rawOutput: 'Reading src/index.ts',
     }));
 
-    expect(updated.items).toHaveLength(1);
-    expect(updated.items[0]).toMatchObject({
+    expect(updated.activities).toHaveLength(1);
+    expect(updated.activities[0]).toMatchObject({
       kind: 'toolCall',
       id: 'tool-read-1',
       title: 'Read file',
       status: 'running',
       detail: 'Reading src/index.ts',
+    });
+  });
+
+  it('derives semantic command activity summaries', () => {
+    const state = reduceWebviewState(withSession(), sessionUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'cmd-1',
+      title: 'Terminal',
+      status: 'completed',
+      rawInput: {
+        command: ['npm', 'run', 'typecheck'],
+      },
+      rawOutput: 'All good',
+    }));
+
+    expect(state.activities[0]).toMatchObject({
+      kind: 'toolCall',
+      id: 'tool-cmd-1',
+      title: 'Ran command',
+      detail: 'npm run typecheck',
+      status: 'completed',
+    });
+  });
+
+  it('derives semantic file change activity summaries', () => {
+    const state = reduceWebviewState(withSession(), sessionUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'write-2',
+      title: 'Write file',
+      status: 'completed',
+      rawInput: {
+        path: 'src/core/AgentManager.ts',
+      },
+      rawOutput: 'updated file',
+    }));
+
+    expect(state.activities[0]).toMatchObject({
+      kind: 'toolCall',
+      id: 'tool-write-2',
+      title: 'Changed files',
+      detail: 'src/core/AgentManager.ts',
+      status: 'completed',
     });
   });
 
@@ -108,16 +150,16 @@ describe('webview state reducer', () => {
       ],
     }));
 
-    expect(state.items[0]).toMatchObject({
+    expect(state.activities[0]).toMatchObject({
       kind: 'toolCall',
       id: 'tool-write-1',
-      title: 'Write file',
+      title: 'Changed files',
       status: 'failed',
-      detail: 'top-level text\nnested text',
+      detail: 'top-level text',
     });
   });
 
-  it('replaces the current plan with normalized entries', () => {
+  it('stores the current plan outside the transcript', () => {
     const first = reduceWebviewState(withSession(), sessionUpdate({
       sessionUpdate: 'plan',
       entries: [
@@ -130,10 +172,14 @@ describe('webview state reducer', () => {
       entries: [{ description: 'Verify tests', status: 'pending' }],
     }));
 
-    expect(second.items).toHaveLength(1);
-    expect(second.items[0]).toMatchObject({
-      kind: 'plan',
-      entries: [{ id: 'plan-0', text: 'Verify tests', completed: false }],
+    expect(first.activePlan?.entries).toEqual([
+      { id: 'plan-0', text: 'Read plan', status: 'completed' },
+      { id: 'plan-1', text: 'Implement reducer', status: 'inProgress' },
+    ]);
+    expect(second.messages).toHaveLength(0);
+    expect(second.activities).toHaveLength(0);
+    expect(second.activePlan).toMatchObject({
+      entries: [{ id: 'plan-0', text: 'Verify tests', status: 'pending' }],
     });
   });
 
@@ -188,7 +234,8 @@ describe('webview state reducer', () => {
       } as never,
     }));
 
-    expect(state.items).toHaveLength(0);
+    expect(state.messages).toHaveLength(0);
+    expect(state.activities).toHaveLength(0);
   });
 
   it('ignores malformed or unsupported ACP updates', () => {
@@ -214,7 +261,7 @@ describe('webview state reducer', () => {
     const persisted = toPersistedState(withMessage);
 
     expect(isPersistedWebviewState(persisted)).toBe(true);
-    expect(createInitialState(persisted).items).toHaveLength(1);
+    expect(createInitialState(persisted).messages).toHaveLength(1);
 
     const switched = reduceWebviewState(createInitialState(persisted), extensionMessage({
       type: 'state',
@@ -222,7 +269,10 @@ describe('webview state reducer', () => {
       session: sessionState({ sessionId: 'session-2' }),
     }));
 
-    expect(switched.items).toHaveLength(0);
+    expect(switched.messages).toHaveLength(0);
+    expect(switched.activities).toHaveLength(0);
+    expect(switched.nextOrder).toBe(1);
+    expect(switched.activePlan).toBeNull();
     expect(switched.nextItemId).toBe(1);
   });
 });

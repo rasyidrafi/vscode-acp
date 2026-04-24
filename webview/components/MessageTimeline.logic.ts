@@ -1,17 +1,18 @@
-import type { ChatItem, TimelineRow } from '../../src/shared/chatModel';
+import type { ActivityItem, ConversationMessage, TimelineRow } from '../../src/shared/chatModel';
 
 export interface DeriveTimelineRowsOptions {
   previousRows?: TimelineRow[];
   turnInProgress?: boolean;
 }
 
-type WorkItem = Extract<ChatItem, { kind: 'toolCall' | 'thought' }>;
+type WorkItem = Extract<ActivityItem, { kind: 'toolCall' | 'thought' }>;
 
 export function deriveTimelineRows(
-  items: ChatItem[],
+  messages: ConversationMessage[],
+  activities: ActivityItem[],
   options: DeriveTimelineRowsOptions = {},
 ): TimelineRow[] {
-  const nextRows = buildRows(items, Boolean(options.turnInProgress));
+  const nextRows = buildRows(messages, activities, Boolean(options.turnInProgress));
   if (!options.previousRows || options.previousRows.length === 0) {
     return nextRows;
   }
@@ -20,9 +21,14 @@ export function deriveTimelineRows(
   return nextRows.map((row) => reuseStableRow(previousById.get(row.id), row));
 }
 
-function buildRows(items: ChatItem[], turnInProgress: boolean): TimelineRow[] {
+function buildRows(
+  messages: ConversationMessage[],
+  activities: ActivityItem[],
+  turnInProgress: boolean,
+): TimelineRow[] {
   const rows: TimelineRow[] = [];
   let workItems: WorkItem[] = [];
+  const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
 
   function flushWorkItems(): void {
     if (workItems.length === 0) {
@@ -39,7 +45,7 @@ function buildRows(items: ChatItem[], turnInProgress: boolean): TimelineRow[] {
     workItems = [];
   }
 
-  for (const item of items) {
+  for (const item of mergedItems) {
     switch (item.kind) {
       case 'thought':
       case 'toolCall':
@@ -48,10 +54,6 @@ function buildRows(items: ChatItem[], turnInProgress: boolean): TimelineRow[] {
       case 'message':
         flushWorkItems();
         rows.push({ kind: 'message', id: item.id, item });
-        break;
-      case 'plan':
-        flushWorkItems();
-        rows.push({ kind: 'plan', id: item.id, item });
         break;
       case 'error':
         flushWorkItems();
@@ -62,7 +64,7 @@ function buildRows(items: ChatItem[], turnInProgress: boolean): TimelineRow[] {
 
   flushWorkItems();
 
-  if (turnInProgress && !hasStreamingItem(items)) {
+  if (turnInProgress && !hasStreamingItem(messages, activities)) {
     rows.push({ kind: 'working', id: 'working-current-turn' });
   }
 
@@ -77,8 +79,6 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
   switch (next.kind) {
     case 'message':
       return previous.kind === 'message' && previous.item === next.item ? previous : next;
-    case 'plan':
-      return previous.kind === 'plan' && previous.item === next.item ? previous : next;
     case 'error':
       return previous.kind === 'error' && previous.item === next.item ? previous : next;
     case 'work':
@@ -92,8 +92,7 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
   }
 }
 
-function hasStreamingItem(items: ChatItem[]): boolean {
-  return items.some((item) => (
-    (item.kind === 'message' || item.kind === 'thought') && item.streaming
-  ));
+function hasStreamingItem(messages: ConversationMessage[], activities: ActivityItem[]): boolean {
+  return messages.some((item) => item.streaming) ||
+    activities.some((item) => item.kind === 'thought' && item.streaming);
 }

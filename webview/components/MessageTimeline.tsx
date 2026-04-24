@@ -3,27 +3,35 @@ import type { ReactElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import type { ChatItem, TimelineRow } from '../../src/shared/chatModel';
+import type {
+  ActivityItem,
+  ConversationMessage,
+  ErrorActivity,
+  ThoughtActivity,
+  TimelineRow,
+  ToolCallActivity,
+} from '../../src/shared/chatModel';
 import { sanitizeMarkdownUrl } from '../lib/markdownLinks';
 import { deriveTimelineRows } from './MessageTimeline.logic';
 
 interface MessageTimelineProps {
-  items: ChatItem[];
+  messages: ConversationMessage[];
+  activities: ActivityItem[];
   turnInProgress: boolean;
 }
 
-export function MessageTimeline({ items, turnInProgress }: MessageTimelineProps): ReactElement {
+export function MessageTimeline({ messages, activities, turnInProgress }: MessageTimelineProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rowsRef = useRef<TimelineRow[]>([]);
   const shouldStickToBottomRef = useRef(true);
   const rows = useMemo(() => {
-    const nextRows = deriveTimelineRows(items, {
+    const nextRows = deriveTimelineRows(messages, activities, {
       previousRows: rowsRef.current,
       turnInProgress,
     });
     rowsRef.current = nextRows;
     return nextRows;
-  }, [items, turnInProgress]);
+  }, [messages, activities, turnInProgress]);
 
   useEffect(() => {
     if (!shouldStickToBottomRef.current) {
@@ -63,8 +71,6 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
       return <MessageRow item={row.item} />;
     case 'work':
       return <WorkRow items={row.items} />;
-    case 'plan':
-      return <PlanRow item={row.item} />;
     case 'error':
       return <ErrorRow item={row.item} />;
     case 'working':
@@ -77,7 +83,7 @@ function TimelineRowView({ row }: { row: TimelineRow }): ReactElement {
   }
 }
 
-function MessageRow({ item }: { item: Extract<ChatItem, { kind: 'message' }> }): ReactElement {
+function MessageRow({ item }: { item: ConversationMessage }): ReactElement {
   const [copied, setCopied] = useState(false);
   const canCopy = item.role === 'assistant' && !item.streaming && item.text.trim().length > 0;
 
@@ -93,6 +99,7 @@ function MessageRow({ item }: { item: Extract<ChatItem, { kind: 'message' }> }):
   return (
     <article className={`chat-row message-row ${item.role}`}>
       <div className="message-content">
+        {item.role === 'assistant' ? <div className="message-eyebrow">Response</div> : null}
         {item.role === 'assistant' ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={sanitizeMarkdownUrl}>{item.text}</ReactMarkdown>
         ) : (
@@ -115,51 +122,67 @@ function MessageRow({ item }: { item: Extract<ChatItem, { kind: 'message' }> }):
   );
 }
 
-function WorkRow({ items }: { items: Array<Extract<ChatItem, { kind: 'toolCall' | 'thought' }>> }): ReactElement {
+function WorkRow({ items }: { items: Array<ThoughtActivity | ToolCallActivity> }): ReactElement {
+  const [expanded, setExpanded] = useState(false);
+  const hasOverflow = items.length > 6;
+  const visibleItems = hasOverflow && !expanded ? items.slice(-6) : items;
+  const hiddenCount = items.length - visibleItems.length;
+
   return (
     <section className="chat-row work-row" aria-label="Agent work">
-      {items.map((item) => (
-        item.kind === 'thought' ? <ThoughtRow key={item.id} item={item} /> : <ToolCallRow key={item.id} item={item} />
-      ))}
+      <div className="work-row-header">
+        <div>
+          <strong>Work Log</strong>
+          <span>{items.length} event{items.length === 1 ? '' : 's'}</span>
+        </div>
+        {hasOverflow ? (
+          <button type="button" className="work-toggle-button" onClick={() => setExpanded((value) => !value)}>
+            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+          </button>
+        ) : null}
+      </div>
+      <div className="work-row-list">
+        {visibleItems.map((item) => (
+          item.kind === 'thought' ? <ThoughtRow key={item.id} item={item} /> : <ToolCallRow key={item.id} item={item} />
+        ))}
+      </div>
     </section>
   );
 }
 
-function ThoughtRow({ item }: { item: Extract<ChatItem, { kind: 'thought' }> }): ReactElement {
+function ThoughtRow({ item }: { item: ThoughtActivity }): ReactElement {
   return (
     <details className="work-item thought-row" open={!item.collapsed}>
-      <summary>{item.streaming ? 'Thinking...' : 'Thought'}</summary>
+      <summary>
+        <span className="work-item-icon thinking" aria-hidden="true" />
+        <span>{item.streaming ? 'Thinking' : 'Thought'}</span>
+      </summary>
       <p>{item.text}</p>
     </details>
   );
 }
 
-function ToolCallRow({ item }: { item: Extract<ChatItem, { kind: 'toolCall' }> }): ReactElement {
+function ToolCallRow({ item }: { item: ToolCallActivity }): ReactElement {
+  const statusLabel = item.status === 'running'
+    ? 'Running'
+    : item.status === 'completed'
+      ? 'Completed'
+      : item.status === 'failed'
+        ? 'Failed'
+        : 'Pending';
   return (
     <article className={`work-item tool-row ${item.status}`}>
-      <strong>{item.title}</strong>
-      <span>{item.status}</span>
+      <div className="tool-row-heading">
+        <span className={`work-item-icon ${item.status}`} aria-hidden="true" />
+        <strong>{item.title}</strong>
+      </div>
+      <span>{statusLabel}</span>
       {item.detail ? <p>{item.detail}</p> : null}
     </article>
   );
 }
 
-function PlanRow({ item }: { item: Extract<ChatItem, { kind: 'plan' }> }): ReactElement {
-  return (
-    <article className="chat-row plan-row">
-      <strong>Plan</strong>
-      <ul>
-        {item.entries.map((entry) => (
-          <li key={entry.id} className={entry.completed ? 'completed' : undefined}>
-            {entry.text}
-          </li>
-        ))}
-      </ul>
-    </article>
-  );
-}
-
-function ErrorRow({ item }: { item: Extract<ChatItem, { kind: 'error' }> }): ReactElement {
+function ErrorRow({ item }: { item: ErrorActivity }): ReactElement {
   return (
     <article className="chat-row inline-error-row">
       {item.text}

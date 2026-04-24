@@ -7,39 +7,36 @@ describe('deriveTimelineRows', () => {
   it('groups adjacent thoughts and tool calls into work rows', () => {
     const rows = deriveTimelineRows([
       userMessage('user-1'),
+      assistantMessage('assistant-1'),
+    ], [
       thought('thought-1'),
       toolCall('tool-1'),
-      assistantMessage('assistant-1'),
       toolCall('tool-2'),
-      plan('plan-1'),
     ]);
 
     expect(rows.map((row) => row.kind)).toEqual([
       'message',
-      'work',
       'message',
       'work',
-      'plan',
     ]);
     expect(rows[1]).toMatchObject({
-      kind: 'work',
-      id: 'work-thought-1-tool-1',
+      kind: 'message',
+      id: 'assistant-1',
     });
-    expect(rows[3]).toMatchObject({
+    expect(rows[2]).toMatchObject({
       kind: 'work',
-      id: 'work-tool-2',
+      id: 'work-thought-1-tool-2',
     });
   });
 
   it('preserves row object identity when visible fields did not change', () => {
-    const items = [
+    const messages = [
       userMessage('user-1'),
-      thought('thought-1'),
-      toolCall('tool-1'),
       assistantMessage('assistant-1'),
     ];
-    const firstRows = deriveTimelineRows(items);
-    const secondRows = deriveTimelineRows([...items], { previousRows: firstRows });
+    const activities = [thought('thought-1'), toolCall('tool-1')];
+    const firstRows = deriveTimelineRows(messages, activities);
+    const secondRows = deriveTimelineRows([...messages], [...activities], { previousRows: firstRows });
 
     expect(secondRows[0]).toBe(firstRows[0]);
     expect(secondRows[1]).toBe(firstRows[1]);
@@ -52,22 +49,20 @@ describe('deriveTimelineRows', () => {
     const baseAssistant = assistantMessage('assistant-1', 'Hello', true);
     const firstRows = deriveTimelineRows([
       user,
-      existingThought,
       baseAssistant,
-    ]);
+    ], [existingThought]);
     const secondRows = deriveTimelineRows([
       user,
-      existingThought,
       { ...baseAssistant, text: 'Hello there' },
-    ], { previousRows: firstRows });
+    ], [existingThought], { previousRows: firstRows });
 
     expect(secondRows[0]).toBe(firstRows[0]);
-    expect(secondRows[1]).toBe(firstRows[1]);
-    expect(secondRows[2]).not.toBe(firstRows[2]);
+    expect(secondRows[1]).not.toBe(firstRows[1]);
+    expect(secondRows[2]).toBe(firstRows[2]);
   });
 
   it('adds a working row while waiting for the first streaming update', () => {
-    expect(deriveTimelineRows([userMessage('user-1')], { turnInProgress: true }))
+    expect(deriveTimelineRows([userMessage('user-1')], [], { turnInProgress: true }))
       .toEqual([
         expect.objectContaining({ kind: 'message', id: 'user-1' }),
         { kind: 'working', id: 'working-current-turn' },
@@ -78,7 +73,7 @@ describe('deriveTimelineRows', () => {
     const rows = deriveTimelineRows([
       userMessage('user-1'),
       assistantMessage('assistant-1', 'Streaming', true),
-    ], { turnInProgress: true });
+    ], [], { turnInProgress: true });
 
     expect(rows.map((row) => row.kind)).toEqual(['message', 'message']);
   });
@@ -86,6 +81,7 @@ describe('deriveTimelineRows', () => {
 
 function userMessage(id: string): Extract<ChatItem, { kind: 'message' }> {
   return {
+    order: 1,
     kind: 'message',
     id,
     role: 'user',
@@ -95,6 +91,7 @@ function userMessage(id: string): Extract<ChatItem, { kind: 'message' }> {
 
 function assistantMessage(id: string, text = 'Hi', streaming = false): Extract<ChatItem, { kind: 'message' }> {
   return {
+    order: 2,
     kind: 'message',
     id,
     role: 'assistant',
@@ -105,6 +102,7 @@ function assistantMessage(id: string, text = 'Hi', streaming = false): Extract<C
 
 function thought(id: string): Extract<ChatItem, { kind: 'thought' }> {
   return {
+    order: 3,
     kind: 'thought',
     id,
     text: 'Thinking',
@@ -113,17 +111,10 @@ function thought(id: string): Extract<ChatItem, { kind: 'thought' }> {
 
 function toolCall(id: string): Extract<ChatItem, { kind: 'toolCall' }> {
   return {
+    order: id === 'tool-2' ? 5 : 4,
     kind: 'toolCall',
     id,
     title: 'Read file',
     status: 'running',
-  };
-}
-
-function plan(id: string): Extract<ChatItem, { kind: 'plan' }> {
-  return {
-    kind: 'plan',
-    id,
-    entries: [{ id: 'entry-1', text: 'Check tests' }],
   };
 }

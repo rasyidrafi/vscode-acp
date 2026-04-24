@@ -797,9 +797,6 @@ body.vscode-dark .message-copy-tooltip {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-top: 1px solid var(--acp-border);
-  padding-top: 10px;
-  margin-top: 2px;
 }
 
 .tool-code-block {
@@ -1589,7 +1586,7 @@ body.vscode-dark .message-copy-tooltip {
 
 .tool-row-detail {
   font-size: 0.82em;
-  color: var(--vscode-foreground);
+  color: color-mix(in srgb, var(--acp-muted) 85%, transparent);
   margin-top: 4px;
   margin-bottom: 8px;
   white-space: pre-wrap;
@@ -1606,14 +1603,8 @@ body.vscode-dark .message-copy-tooltip {
   flex: 1;
 }
 
-.tool-locations-section.no-label {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
 .tool-read-summary {
-  color: var(--vscode-foreground);
+  color: color-mix(in srgb, var(--acp-muted) 85%, transparent);
   margin-bottom: 0;
   font-size: 0.9em;
   font-weight: 500;
@@ -1622,7 +1613,7 @@ body.vscode-dark .message-copy-tooltip {
 .tool-read-detail {
   font-size: 0.9em;
   margin-bottom: 0;
-  color: var(--vscode-foreground);
+  color: color-mix(in srgb, var(--acp-muted) 85%, transparent);
   white-space: pre-wrap;
   word-break: break-all;
 }

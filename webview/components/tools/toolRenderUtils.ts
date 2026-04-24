@@ -184,7 +184,16 @@ export function extractEditData(input: unknown, output: unknown): {
   const inRecord = asRecord(input);
   const outRecord = asRecord(output);
 
+  // Handle ACP content array
+  let acpDiff: Record<string, unknown> | undefined;
+  if (Array.isArray(output)) {
+    acpDiff = output.find((part) => part && typeof part === 'object' && (part as Record<string, unknown>).type === 'diff') as Record<string, unknown> | undefined;
+  } else if (Array.isArray(input)) {
+    acpDiff = input.find((part) => part && typeof part === 'object' && (part as Record<string, unknown>).type === 'diff') as Record<string, unknown> | undefined;
+  }
+
   const path = firstString(
+    acpDiff?.path,
     inRecord?.path,
     inRecord?.file_path,
     inRecord?.filePath,
@@ -194,6 +203,7 @@ export function extractEditData(input: unknown, output: unknown): {
   );
 
   const oldText = firstString(
+    acpDiff?.oldText,
     inRecord?.old_string,
     inRecord?.oldString,
     outRecord?.old_string,
@@ -201,6 +211,7 @@ export function extractEditData(input: unknown, output: unknown): {
     outRecord?.oldContent,
   );
   const newText = firstString(
+    acpDiff?.newText,
     inRecord?.new_string,
     inRecord?.newString,
     outRecord?.new_string,
@@ -209,6 +220,8 @@ export function extractEditData(input: unknown, output: unknown): {
   );
 
   const diffText = firstString(
+    acpDiff?.diff,
+    acpDiff?.patch,
     outRecord?.diff,
     outRecord?.patch,
     outRecord?.detailedContent,

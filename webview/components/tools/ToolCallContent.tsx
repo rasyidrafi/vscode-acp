@@ -31,10 +31,7 @@ export function ToolCallContent({ item }: ToolCallContentProps): ReactElement {
         output={parsedOutput}
       />
       {item.locations && item.locations.length > 0 && (
-        <LocationList
-          locations={item.locations}
-          hideLabel={renderer === 'read' || renderer === 'search'}
-        />
+        <LocationList locations={item.locations} />
       )}
     </div>
   );
@@ -99,22 +96,15 @@ function BashToolContent(
 
 function LocationList({
   locations,
-  hideLabel,
 }: {
   locations: Array<{ path: string }>;
-  hideLabel?: boolean;
 }): ReactElement {
   if (locations.length === 0) {
     return <></>;
   }
 
   return (
-    <div className={`tool-locations-section${hideLabel ? ' no-label' : ''}`}>
-      {!hideLabel && (
-        <div className="tool-section-label">
-          {locations.length === 1 ? 'Location' : `${locations.length} Locations`}
-        </div>
-      )}
+    <div className="tool-locations-section">
       <div className="tool-search-results-container" style={{ maxHeight: '160px' }}>
         <div className="tool-search-files">
           {locations.map((loc, idx) => (

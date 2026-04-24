@@ -45,24 +45,114 @@ function reduceExtensionMessage(
 ): WebviewState {
   switch (message.type) {
     case 'state': {
-      const sessionChanged = state.activeSessionId !== message.activeSessionId;
+      const oldSessionId = state.activeSessionId;
+      const newSessionId = message.activeSessionId;
+      const sessionChanged = oldSessionId !== newSessionId;
       const session = message.session;
-      return {
+
+      let nextState = {
         ...state,
         session,
-        activeSessionId: message.activeSessionId,
+        activeSessionId: newSessionId,
         modes: session?.modes ?? null,
         models: session?.models ?? null,
         availableCommands: session?.availableCommands ?? [],
-        ...(sessionChanged ? emptyTimelineState() : undefined),
       };
-    }
-    case 'sessionUpdate':
-      if (message.sessionId !== state.activeSessionId) {
-        return state;
+
+      if (sessionChanged) {
+        // Save current history if there was an active session
+        const updatedHistory = { ...state.sessionsHistory };
+        if (oldSessionId) {
+          updatedHistory[oldSessionId] = {
+            messages: state.messages,
+            activities: state.activities,
+            activePlan: state.activePlan,
+            attachedFiles: state.attachedFiles,
+            nextOrder: state.nextOrder,
+            nextItemId: state.nextItemId,
+            currentAssistantMessageId: state.currentAssistantMessageId,
+            currentThoughtId: state.currentThoughtId,
+            turnInProgress: state.turnInProgress,
+          };
+        }
+
+        // Restore history for the new session if it exists
+        const restoredHistory = newSessionId ? updatedHistory[newSessionId] : undefined;
+
+        if (restoredHistory) {
+          nextState = {
+            ...nextState,
+            messages: restoredHistory.messages,
+            activities: restoredHistory.activities,
+            activePlan: restoredHistory.activePlan,
+            attachedFiles: restoredHistory.attachedFiles,
+            nextOrder: restoredHistory.nextOrder,
+            nextItemId: restoredHistory.nextItemId,
+            currentAssistantMessageId: restoredHistory.currentAssistantMessageId,
+            currentThoughtId: restoredHistory.currentThoughtId,
+            turnInProgress: restoredHistory.turnInProgress,
+            sessionsHistory: updatedHistory,
+          };
+        } else {
+          nextState = {
+            ...nextState,
+            ...emptyTimelineState(),
+            attachedFiles: [],
+            turnInProgress: false,
+            sessionsHistory: updatedHistory,
+          };
+        }
       }
-      return applySessionUpdate(state, message.update);
+
+      return nextState;
+    }
+    case 'sessionUpdate': {
+      const { sessionId, update } = message;
+      if (sessionId === state.activeSessionId) {
+        return applySessionUpdate(state, update);
+      } else {
+        // Background session update
+        const history = state.sessionsHistory[sessionId];
+        if (!history) {
+          return state;
+        }
+
+        const tempState: WebviewState = {
+          ...state,
+          messages: history.messages,
+          activities: history.activities,
+          activePlan: history.activePlan,
+          attachedFiles: history.attachedFiles,
+          nextOrder: history.nextOrder,
+          nextItemId: history.nextItemId,
+          currentAssistantMessageId: history.currentAssistantMessageId,
+          currentThoughtId: history.currentThoughtId,
+          turnInProgress: history.turnInProgress,
+        };
+
+        const updatedTempState = applySessionUpdate(tempState, update);
+
+        return {
+          ...state,
+          sessionsHistory: {
+            ...state.sessionsHistory,
+            [sessionId]: {
+              messages: updatedTempState.messages,
+              activities: updatedTempState.activities,
+              activePlan: updatedTempState.activePlan,
+              attachedFiles: updatedTempState.attachedFiles,
+              nextOrder: updatedTempState.nextOrder,
+              nextItemId: updatedTempState.nextItemId,
+              currentAssistantMessageId: updatedTempState.currentAssistantMessageId,
+              currentThoughtId: updatedTempState.currentThoughtId,
+              turnInProgress: updatedTempState.turnInProgress,
+            },
+          },
+        };
+      }
+    }
     case 'promptStart':
+      // This usually only happens for the active session since the user initiated it
       return {
         ...state,
         turnInProgress: true,
@@ -71,6 +161,7 @@ function reduceExtensionMessage(
         currentThoughtId: null,
       };
     case 'promptEnd':
+      // This also usually only happens for the active session
       return finalizeStreamingItems({
         ...state,
         turnInProgress: false,
@@ -565,8 +656,10 @@ function deriveToolCallPresentation(
   const path = extractPrimaryPath(update);
   const outputSummary = summarizeToolOutput(update);
   const status = update.status;
+  const kind = update.kind;
 
-  if (command || update.kind === 'execute') {
+  // 1. First priority: tool kind from protocol
+  if (kind === 'execute') {
     let title = 'Ran command';
     if (status === 'running' || status === 'in_progress') {
       title = 'Running command';
@@ -579,7 +672,22 @@ function deriveToolCallPresentation(
     };
   }
 
-  if (lowerTitle.includes('read') || update.kind === 'read' || lowerTitle.includes('view')) {
+  if (kind === 'edit') {
+    let title = 'Edited files';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Editing files';
+    } else if (status === 'completed') {
+      title = 'Edited files';
+    } else if (status === 'failed') {
+      title = 'Failed to edit files';
+    }
+    return {
+      title,
+      detail: path ?? outputSummary ?? options.fallbackDetail,
+    };
+  }
+
+  if (kind === 'read') {
     let title = 'Read file';
     if (status === 'running' || status === 'in_progress') {
       title = 'Reading file';
@@ -594,6 +702,34 @@ function deriveToolCallPresentation(
     };
   }
 
+  if (kind === 'search') {
+    let title = 'Searched project';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Searching project';
+    } else if (status === 'failed') {
+      title = 'Failed to search project';
+    }
+    const query = extractSearchQuery(update);
+    return {
+      title,
+      detail: query ?? outputSummary ?? rawTitle ?? options.fallbackDetail,
+    };
+  }
+
+  // 2. Second priority: fallback to title-based heuristics
+  if (command) {
+    let title = 'Ran command';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Running command';
+    } else if (status === 'failed') {
+      title = 'Failed to run command';
+    }
+    return {
+      title,
+      detail: command,
+    };
+  }
+
   if (
     lowerTitle.includes('write') ||
     lowerTitle.includes('edit') ||
@@ -601,8 +737,7 @@ function deriveToolCallPresentation(
     lowerTitle.includes('move') ||
     lowerTitle.includes('rename') ||
     lowerTitle.includes('delete') ||
-    lowerTitle.includes('patch') ||
-    update.kind === 'edit'
+    lowerTitle.includes('patch')
   ) {
     let title = 'Edited files';
     if (status === 'running' || status === 'in_progress') {
@@ -618,11 +753,25 @@ function deriveToolCallPresentation(
     };
   }
 
+  if (lowerTitle.includes('read') || lowerTitle.includes('view')) {
+    let title = 'Read file';
+    if (status === 'running' || status === 'in_progress') {
+      title = 'Reading file';
+    } else if (status === 'completed') {
+      title = 'Read file';
+    } else if (status === 'failed') {
+      title = 'Failed to read file';
+    }
+    return {
+      title,
+      detail: outputSummary ?? rawTitle ?? options.fallbackDetail,
+    };
+  }
+
   if (
     lowerTitle.includes('search') ||
     lowerTitle.includes('grep') ||
-    lowerTitle.includes('find') ||
-    update.kind === 'search'
+    lowerTitle.includes('find')
   ) {
     let title = 'Searched project';
     if (status === 'running' || status === 'in_progress') {

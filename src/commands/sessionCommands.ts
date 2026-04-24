@@ -45,14 +45,9 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
     }
 
     const currentAgent = services.sessionManager.getActiveAgentName();
-    if (currentAgent && currentAgent !== agentName && services.chatWebviewProvider.hasChatContent) {
-      const choice = await vscode.window.showWarningMessage(
-        `Switch to ${agentName}? This will disconnect ${currentAgent} and clear the chat history.`,
-        'Switch Agent',
-        'Cancel',
-      );
-      if (choice !== 'Switch Agent') { return; }
-      services.chatWebviewProvider.clearChat();
+    if (currentAgent && currentAgent === agentName) {
+      void vscode.commands.executeCommand('acp-chat.focus');
+      return;
     }
 
     try {

@@ -10,25 +10,38 @@ class AgentTreeItem extends vscode.TreeItem {
   constructor(
     public readonly agentName: string,
     public readonly connected: boolean,
+    public readonly active: boolean,
   ) {
     super(agentName, vscode.TreeItemCollapsibleState.None);
 
-    if (connected) {
+    if (active) {
+      this.label = `${agentName} (active)`;
+      this.contextValue = 'agent-active';
+      this.iconPath = new vscode.ThemeIcon(
+        'record',
+        new vscode.ThemeColor('testing.iconPassed'),
+      );
+      this.description = 'active';
+    } else if (connected) {
       this.contextValue = 'agent-connected';
       this.iconPath = new vscode.ThemeIcon(
         'circle-filled',
         new vscode.ThemeColor('testing.iconPassed'),
       );
       this.description = 'connected';
-      // Click to focus chat
-      this.command = {
-        command: 'acp.openChat',
-        title: 'Open Chat',
-      };
     } else {
       this.contextValue = 'agent-disconnected';
       this.iconPath = new vscode.ThemeIcon('circle-outline');
       this.description = '';
+    }
+
+    if (connected) {
+      // Click to switch/focus
+      this.command = {
+        command: 'acp.connectAgent',
+        title: 'Switch to Agent',
+        arguments: [agentName],
+      };
     }
 
     this.tooltip = connected
@@ -63,10 +76,12 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeIte
     if (element) { return []; } // flat list, no children
 
     const agentNames = getAgentNames();
+    const activeAgent = this.sessionManager.getActiveAgentName();
 
     return agentNames.map(name => new AgentTreeItem(
       name,
       this.sessionManager.isAgentConnected(name),
+      activeAgent === name,
     ));
   }
 

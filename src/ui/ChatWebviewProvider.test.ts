@@ -87,6 +87,14 @@ describe('ChatWebviewProvider', () => {
     expect(posted).toEqual([
       {
         type: 'sessionUpdate',
+        sessionId: 'stale-session',
+        update: {
+          sessionUpdate: 'available_commands_update',
+          availableCommands: [{ name: 'old', description: 'stale' }],
+        },
+      },
+      {
+        type: 'sessionUpdate',
         sessionId: 'session-1',
         update: {
           sessionUpdate: 'available_commands_update',

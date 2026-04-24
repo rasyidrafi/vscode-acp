@@ -286,7 +286,78 @@ describe('webview state reducer', () => {
     expect(consumed.attachedFiles).toHaveLength(0);
   });
 
-  it('ignores updates for inactive sessions', () => {
+  it('saves and restores history when switching sessions', () => {
+    // 1. Start with session 1 and add a message
+    const state1 = reduceWebviewState(withSession({ sessionId: 'session-1' }), sessionUpdate({
+      sessionId: 'session-1',
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Hello from 1' },
+    }));
+    expect(state1.messages).toHaveLength(1);
+    expect(state1.messages[0].text).toBe('Hello from 1');
+
+    // 2. Switch to session 2
+    const state2 = reduceWebviewState(state1, extensionMessage({
+      type: 'state',
+      activeSessionId: 'session-2',
+      session: sessionState({ sessionId: 'session-2' }),
+    }));
+    expect(state2.messages).toHaveLength(0);
+    expect(state2.sessionsHistory['session-1']).toBeDefined();
+    expect(state2.sessionsHistory['session-1'].messages).toHaveLength(1);
+
+    // 3. Add message to session 2
+    const state2WithMsg = reduceWebviewState(state2, sessionUpdate({
+      sessionId: 'session-2',
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Hello from 2' },
+    }));
+
+    // 4. Switch back to session 1
+    const stateBackTo1 = reduceWebviewState(state2WithMsg, extensionMessage({
+      type: 'state',
+      activeSessionId: 'session-1',
+      session: sessionState({ sessionId: 'session-1' }),
+    }));
+    expect(stateBackTo1.messages).toHaveLength(1);
+    expect(stateBackTo1.messages[0].text).toBe('Hello from 1');
+    expect(stateBackTo1.sessionsHistory['session-2'].messages).toHaveLength(1);
+    expect(stateBackTo1.sessionsHistory['session-2'].messages[0].text).toBe('Hello from 2');
+  });
+
+  it('applies updates to background sessions', () => {
+    // 1. Start with session 1
+    const state1 = withSession({ sessionId: 'session-1' });
+
+    // 2. Switch to session 2
+    const state2 = reduceWebviewState(state1, extensionMessage({
+      type: 'state',
+      activeSessionId: 'session-2',
+      session: sessionState({ sessionId: 'session-2' }),
+    }));
+
+    // 3. Receive update for session 1 (which is now in background)
+    const stateWithBackgroundUpdate = reduceWebviewState(state2, sessionUpdate({
+      sessionId: 'session-1',
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Background message' },
+    }));
+
+    expect(stateWithBackgroundUpdate.messages).toHaveLength(0); // Active session (2) still empty
+    expect(stateWithBackgroundUpdate.sessionsHistory['session-1'].messages).toHaveLength(1);
+    expect(stateWithBackgroundUpdate.sessionsHistory['session-1'].messages[0].text).toBe('Background message');
+
+    // 4. Switch back to session 1 and see the background message
+    const stateBackTo1 = reduceWebviewState(stateWithBackgroundUpdate, extensionMessage({
+      type: 'state',
+      activeSessionId: 'session-1',
+      session: sessionState({ sessionId: 'session-1' }),
+    }));
+    expect(stateBackTo1.messages).toHaveLength(1);
+    expect(stateBackTo1.messages[0].text).toBe('Background message');
+  });
+
+  it('ignores updates for unknown sessions', () => {
     const state = reduceWebviewState(withSession(), extensionMessage({
       type: 'sessionUpdate',
       sessionId: 'other-session',
@@ -298,6 +369,7 @@ describe('webview state reducer', () => {
 
     expect(state.messages).toHaveLength(0);
     expect(state.activities).toHaveLength(0);
+    expect(state.sessionsHistory['other-session']).toBeUndefined();
   });
 
   it('ignores malformed or unsupported ACP updates', () => {
@@ -366,7 +438,7 @@ function extensionMessage(message: ExtensionToWebviewMessage) {
 function sessionUpdate(update: Record<string, unknown>) {
   return extensionMessage({
     type: 'sessionUpdate',
-    sessionId: 'session-1',
+    sessionId: update.sessionId as string ?? 'session-1',
     update: adaptSessionUpdate(update),
   });
 }

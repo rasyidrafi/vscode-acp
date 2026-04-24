@@ -103,6 +103,41 @@ describe('SessionManager', () => {
     expect(changed).toHaveBeenCalledWith('session-1');
   });
 
+  it('connects to a second agent without disconnecting the first', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    // First agent session
+    const child1 = { process: {} };
+    agentManager.spawnAgent.mockReturnValueOnce({ id: 'agent-1' });
+    agentManager.getAgent.mockReturnValueOnce(child1);
+    connectionManager.connect.mockResolvedValueOnce({
+      connection: { newSession: vi.fn().mockResolvedValue({ sessionId: 'session-1' }) },
+      initResponse: { agentInfo: { name: 'Codex' } },
+    });
+    await manager.connectToAgent('Codex');
+
+    // Second agent session
+    const child2 = { process: {} };
+    agentManager.spawnAgent.mockReturnValueOnce({ id: 'agent-2' });
+    agentManager.getAgent.mockReturnValueOnce(child2);
+    connectionManager.connect.mockResolvedValueOnce({
+      connection: { newSession: vi.fn().mockResolvedValue({ sessionId: 'session-2' }) },
+      initResponse: { agentInfo: { name: 'Claude Code' } },
+    });
+    await manager.connectToAgent('Claude Code');
+
+    expect(manager.getConnectedAgentNames()).toContain('Codex');
+    expect(manager.getConnectedAgentNames()).toContain('Claude Code');
+    expect(manager.getActiveAgentName()).toBe('Claude Code');
+    expect(agentManager.killAgent).not.toHaveBeenCalled();
+  });
+
   it('disconnects an agent with idempotent cleanup', async () => {
     const agentManager = new FakeAgentManager();
     const connectionManager = new FakeConnectionManager();

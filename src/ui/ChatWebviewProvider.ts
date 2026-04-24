@@ -120,10 +120,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    * Forward session update to webview.
    */
   private handleSessionUpdate(update: BridgeSessionNotification): void {
-    // Only forward updates for the active session
-    const activeId = this.sessionManager.getActiveSessionId();
-    if (update.sessionId !== activeId) { return; }
-
     // Persist available commands on session state
     const availableCommands = getAvailableCommands(update.update);
     if (availableCommands) {

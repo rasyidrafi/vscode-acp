@@ -191,16 +191,12 @@ function EditToolContent(
   const { path, oldText, newText, diffText } = extractEditData(input, output);
 
   if (oldText !== undefined || newText !== undefined) {
-    const oldValue = oldText ?? '';
-    const newValue = newText ?? '';
-    const { oldParts, newParts } = diffWords(oldValue, newValue);
-
     return (
       <div className="tool-edit-content">
         {path ? <div className="tool-edit-path">{path}</div> : null}
         <div className="tool-edit-lines">
-          <DiffLine prefix="-" variant="removed" parts={oldParts} />
-          <DiffLine prefix="+" variant="added" parts={newParts} />
+          {oldText !== undefined && <DiffLine prefix="-" variant="removed" text={oldText} />}
+          {newText !== undefined && <DiffLine prefix="+" variant="added" text={newText} />}
         </div>
       </div>
     );
@@ -224,27 +220,28 @@ function UnifiedDiffContent({ diffText, path }: { diffText: string; path?: strin
       continue;
     }
 
-    const nextLine = lines[index + 1];
-    if (line.startsWith('-') && nextLine?.startsWith('+')) {
-      const oldValue = line.slice(1);
-      const newValue = nextLine.slice(1);
-      const { oldParts, newParts } = diffWords(oldValue, newValue);
-      rows.push(<DiffLine key={`remove-${index}`} prefix="-" variant="removed" parts={oldParts} />);
-      rows.push(<DiffLine key={`add-${index + 1}`} prefix="+" variant="added" parts={newParts} />);
-      index += 1;
-      continue;
-    }
-
     const variant = line.startsWith('+')
       ? 'added'
       : line.startsWith('-')
         ? 'removed'
         : 'context';
-    rows.push(
-      <div key={`line-${index}`} className={`tool-diff-line ${variant}`}>
-        {line}
-      </div>,
-    );
+
+    if (variant === 'context') {
+      rows.push(
+        <div key={`line-${index}`} className="tool-diff-line context">
+          {line}
+        </div>,
+      );
+    } else {
+      rows.push(
+        <DiffLine
+          key={`line-${index}`}
+          prefix={line[0]}
+          variant={variant}
+          text={line.slice(1)}
+        />,
+      );
+    }
   }
 
   return (
@@ -256,21 +253,12 @@ function UnifiedDiffContent({ diffText, path }: { diffText: string; path?: strin
 }
 
 function DiffLine(
-  { prefix, variant, parts }: { prefix: string; variant: 'added' | 'removed'; parts: DiffPart[] },
+  { prefix, variant, text }: { prefix: string; variant: 'added' | 'removed'; text: string },
 ): ReactElement {
   return (
     <div className={`tool-diff-line ${variant}`}>
       <span className="tool-diff-prefix">{prefix}</span>
-      <span className="tool-diff-body">
-        {parts.map((part, index) => (
-          <span
-            key={`${part.changed ? 'changed' : 'plain'}-${index}`}
-            className={part.changed ? 'tool-diff-word-changed' : undefined}
-          >
-            {part.text}
-          </span>
-        ))}
-      </span>
+      <span className="tool-diff-body">{text}</span>
     </div>
   );
 }

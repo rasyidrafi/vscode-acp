@@ -3,6 +3,18 @@ import type { AvailableCommand, SessionModeState, SessionModelState } from '@age
 import type { AttachedFile, BridgeSessionState } from '../src/shared/bridge';
 import type { ActivePlan, ActivityItem, ConversationMessage } from '../src/shared/chatModel';
 
+export interface SessionHistory {
+  messages: ConversationMessage[];
+  activities: ActivityItem[];
+  activePlan: ActivePlan | null;
+  attachedFiles: AttachedFile[];
+  nextOrder: number;
+  nextItemId: number;
+  currentAssistantMessageId: string | null;
+  currentThoughtId: string | null;
+  turnInProgress: boolean;
+}
+
 export interface WebviewState {
   session: BridgeSessionState | null;
   activeSessionId: string | null;
@@ -19,6 +31,7 @@ export interface WebviewState {
   currentThoughtId: string | null;
   nextOrder: number;
   nextItemId: number;
+  sessionsHistory: Record<string, SessionHistory>;
 }
 
 export type PersistedWebviewState = Pick<
@@ -38,6 +51,7 @@ export type PersistedWebviewState = Pick<
   | 'currentThoughtId'
   | 'nextOrder'
   | 'nextItemId'
+  | 'sessionsHistory'
 >;
 
 export function createInitialState(persisted?: PersistedWebviewState): WebviewState {
@@ -57,6 +71,7 @@ export function createInitialState(persisted?: PersistedWebviewState): WebviewSt
     currentThoughtId: persisted?.currentThoughtId ?? null,
     nextOrder: persisted?.nextOrder ?? 1,
     nextItemId: persisted?.nextItemId ?? 1,
+    sessionsHistory: persisted?.sessionsHistory ?? {},
   };
 }
 
@@ -77,6 +92,7 @@ export function toPersistedState(state: WebviewState): PersistedWebviewState {
     currentThoughtId: state.currentThoughtId,
     nextOrder: state.nextOrder,
     nextItemId: state.nextItemId,
+    sessionsHistory: state.sessionsHistory,
   };
 }
 
@@ -100,7 +116,8 @@ export function isPersistedWebviewState(value: unknown): value is PersistedWebvi
     (value.currentAssistantMessageId === null || typeof value.currentAssistantMessageId === 'string') &&
     (value.currentThoughtId === null || typeof value.currentThoughtId === 'string') &&
     typeof value.nextOrder === 'number' &&
-    typeof value.nextItemId === 'number'
+    typeof value.nextItemId === 'number' &&
+    (value.sessionsHistory === undefined || isRecord(value.sessionsHistory))
   );
 }
 

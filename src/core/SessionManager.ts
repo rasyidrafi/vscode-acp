@@ -79,8 +79,6 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Connect to an agent and start chatting.
-   * Only one agent can be connected at a time — automatically disconnects
-   * any previously connected agent.
    * Internally creates a session via ACP protocol.
    */
   async connectToAgent(agentName: string): Promise<SessionInfo> {
@@ -90,12 +88,6 @@ export class SessionManager extends EventEmitter {
       this.activeSessionId = existingSessionId;
       this.emit('active-session-changed', existingSessionId);
       return this.sessions.get(existingSessionId)!;
-    }
-
-    // Disconnect any currently connected agent first (single-agent model)
-    const currentAgent = this.getActiveAgentName();
-    if (currentAgent) {
-      await this.disconnectAgent(currentAgent);
     }
 
     const configs = getAgentConfigs();

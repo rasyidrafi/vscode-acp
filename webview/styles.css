@@ -965,7 +965,8 @@ body.vscode-dark .message-copy-tooltip {
 .tool-edit-lines {
   border: 1px solid var(--acp-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
+  max-height: 400px;
 }
 
 .tool-diff-hunk {
@@ -1014,11 +1015,6 @@ body.vscode-dark .message-copy-tooltip {
 .tool-diff-body {
   min-width: 0;
   flex: 1;
-}
-
-.tool-diff-word-changed {
-  background: color-mix(in srgb, var(--vscode-editor-selectionBackground) 65%, transparent);
-  border-radius: 3px;
 }
 
 .tool-row.running .tool-row-icon {

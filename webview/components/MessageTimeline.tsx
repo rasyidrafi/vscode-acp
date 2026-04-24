@@ -223,22 +223,24 @@ function ThoughtRow(
         role="button"
         tabIndex={0}
       >
-        <div className="thought-row-visual">
-          <div className={`thought-row-icon-layer${isOpen ? ' hidden' : ''}`} aria-hidden="true">
-            <Brain size={14} />
+        <div className="thought-row-header-left">
+          <div className="thought-row-visual">
+            <div className={`thought-row-icon-layer${isOpen ? ' hidden' : ''}`} aria-hidden="true">
+              <Brain size={14} />
+            </div>
+            <div className={`thought-row-chevron-layer${isOpen ? ' visible' : ''}`} aria-hidden="true">
+              <ChevronRight
+                size={12}
+                style={{
+                  display: 'inline-block',
+                  transform: isOpen ? 'rotate(90deg)' : 'none',
+                  transition: 'transform 0.1s ease',
+                }}
+              />
+            </div>
           </div>
-          <div className={`thought-row-chevron-layer${isOpen ? ' visible' : ''}`} aria-hidden="true">
-            <ChevronRight
-              size={12}
-              style={{
-                display: 'inline-block',
-                transform: isOpen ? 'rotate(90deg)' : 'none',
-                transition: 'transform 0.1s ease',
-              }}
-            />
-          </div>
+          <span className="thought-label">Thought</span>
         </div>
-        <span className="thought-label">Thought</span>
       </div>
       {isOpen && (
         <div className="thought-scroll-container">

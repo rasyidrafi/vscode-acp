@@ -591,6 +591,14 @@ body.vscode-dark .message-copy-tooltip {
   color: var(--vscode-foreground);
 }
 
+.thought-row-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
 .thought-row-visual {
   position: relative;
   width: 16px;
@@ -641,6 +649,10 @@ body.vscode-dark .message-copy-tooltip {
   font-weight: 500;
   color: var(--acp-muted);
   transition: color 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .thought-scroll-container {

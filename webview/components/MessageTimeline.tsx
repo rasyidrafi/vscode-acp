@@ -213,7 +213,7 @@ function MessageCopyButton({ text }: { text: string }): ReactElement {
 function ThoughtRow(
   { item, showResponseDivider }: { item: ThoughtActivity; showResponseDivider: boolean },
 ): ReactElement {
-  const text = item.text.trim() || (item.streaming ? 'Thinking' : 'Thought');
+  const text = item.text.trim() || 'Thought';
   const [isOpen, setIsOpen] = useState(!item.collapsed);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ function ThoughtRow(
               />
             </svg>
           </span>
-          <span className="thought-label">{item.streaming ? 'Thinking' : 'Thought'}</span>
+          <span className="thought-label">Thought</span>
         </summary>
       </details>
       {isOpen ? (

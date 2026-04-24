@@ -83,12 +83,20 @@ describe('deriveTimelineRows', () => {
     expect(secondRows[2]).toBe(firstRows[2]);
   });
 
-  it('adds a working row while waiting for the first streaming update', () => {
+  it('adds a working row whenever turn is in progress', () => {
     expect(deriveTimelineRows([userMessage('user-1')], [], { turnInProgress: true }))
       .toEqual([
         expect.objectContaining({ kind: 'message', id: 'user-1' }),
-        { kind: 'working', id: 'working-current-turn' },
+        { kind: 'working', id: 'working-current' },
       ]);
+
+    // Even if streaming, should still show working row
+    const rowsWithStreaming = deriveTimelineRows([
+      userMessage('user-1'),
+      assistantMessage('assistant-1', 'Hello', true),
+    ], [], { turnInProgress: true });
+
+    expect(rowsWithStreaming.some(r => r.kind === 'working')).toBe(true);
   });
 
   it('shows assistant meta when it is the last item in its response block', () => {

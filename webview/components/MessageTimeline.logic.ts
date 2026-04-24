@@ -5,7 +5,6 @@ export interface DeriveTimelineRowsOptions {
   turnInProgress?: boolean;
 }
 
-type WorkItem = Extract<ActivityItem, { kind: 'toolCall' | 'thought' }>;
 export function deriveTimelineRows(
   messages: ConversationMessage[],
   activities: ActivityItem[],
@@ -27,11 +26,20 @@ function buildRows(
 ): TimelineRow[] {
   const rows: TimelineRow[] = [];
   const mergedItems = [...messages, ...activities].sort((left, right) => left.order - right.order);
-  const lastAssistantId = [...messages].reverse().find((item) => item.role === 'assistant')?.id ?? null;
-  const lastItemId = mergedItems[mergedItems.length - 1]?.id ?? null;
-  let awaitingResponseStart = false;
+  const awaitingResponseStartByOrder = new Set<number>();
+  let nextAwaiting = false;
 
   for (const item of mergedItems) {
+    if (item.kind === 'message' && item.role === 'user') {
+      nextAwaiting = true;
+    } else if (nextAwaiting) {
+      awaitingResponseStartByOrder.add(item.order);
+      nextAwaiting = false;
+    }
+  }
+
+  for (const item of mergedItems) {
+    const showResponseDivider = awaitingResponseStartByOrder.has(item.order);
     switch (item.kind) {
       case 'message':
         if (item.role === 'user') {
@@ -40,7 +48,6 @@ function buildRows(
             id: item.id,
             item,
           });
-          awaitingResponseStart = true;
           break;
         }
 
@@ -52,43 +59,39 @@ function buildRows(
           kind: 'message',
           id: item.id,
           item,
-          showResponseDivider: awaitingResponseStart,
+          showResponseDivider,
           showAssistantMeta: item.role === 'assistant' && !isFollowedByAssistantItem,
         });
-        awaitingResponseStart = false;
         break;
       case 'thought':
         rows.push({
           kind: 'thought',
           id: item.id,
           item,
-          showResponseDivider: awaitingResponseStart,
+          showResponseDivider,
         });
-        awaitingResponseStart = false;
         break;
       case 'toolCall':
         rows.push({
           kind: 'tool',
           id: item.id,
           item,
-          showResponseDivider: awaitingResponseStart,
+          showResponseDivider,
         });
-        awaitingResponseStart = false;
         break;
       case 'error':
         rows.push({
           kind: 'error',
           id: item.id,
           item,
-          showResponseDivider: awaitingResponseStart,
+          showResponseDivider,
         });
-        awaitingResponseStart = false;
         break;
     }
   }
 
-  if (turnInProgress && !hasStreamingItem(messages, activities)) {
-    rows.push({ kind: 'working', id: 'working-current-turn' });
+  if (turnInProgress) {
+    rows.push({ kind: 'working', id: 'working-current' });
   }
 
   return rows;
@@ -128,9 +131,4 @@ function reuseStableRow(previous: TimelineRow | undefined, next: TimelineRow): T
     case 'working':
       return previous;
   }
-}
-
-function hasStreamingItem(messages: ConversationMessage[], activities: ActivityItem[]): boolean {
-  return messages.some((item) => item.streaming) ||
-    activities.some((item) => item.kind === 'thought' && item.streaming);
 }

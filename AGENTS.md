@@ -7,29 +7,32 @@ VS Code extension for connecting to ACP-compatible coding agents. It spawns an a
 ## Core Flow
 
 1. `src/extension.ts` activates the extension, creates services, registers views, and delegates command registration.
-2. User connects through `acp.connectAgent`.
-3. `SessionManager` reads the selected agent config and enforces one active agent at a time.
-4. `AgentManager` spawns the configured agent process.
-5. `ConnectionManager` wraps the process stdin/stdout with ACP `ndJsonStream`.
-6. ACP `initialize` and `newSession` create the working session.
-7. Chat prompts go through `SessionManager.sendPrompt`.
-8. Agent streaming output arrives as ACP `session/update` notifications.
-9. `SessionUpdateHandler` normalizes raw ACP updates through `src/shared/acpAdapters.ts`.
-10. `ChatWebviewProvider` forwards normalized updates over the bridge to the React webview.
-11. The webview persists its own transcript state with `vscode.setState()` and reports `stateSync` back to the extension so session-switch confirmations use synchronized chat-content state.
+2. User creates a session instance through `acp.connectAgent` / Create Agent Instance.
+3. `SessionManager` reads the selected agent config and creates one visible session instance.
+4. A session instance is one spawned agent process, one ACP connection, and one ACP session id.
+5. `AgentManager` spawns the configured agent process.
+6. `ConnectionManager` wraps the process stdin/stdout with ACP `ndJsonStream`.
+7. ACP `initialize` and `newSession` create the working session.
+8. `acp.openSession` makes an existing connected session instance active in chat.
+9. Chat prompts go through `SessionManager.sendPrompt`.
+10. Agent streaming output arrives as ACP `session/update` notifications.
+11. `SessionUpdateHandler` normalizes raw ACP updates through `src/shared/acpAdapters.ts`.
+12. `ChatWebviewProvider` forwards normalized updates over the bridge to the React webview.
+13. The webview persists its own transcript state with `vscode.setState()` and reports `stateSync` back to the extension so session-switch confirmations use synchronized chat-content state.
 
 ## Key Files
 
 - `src/extension.ts`: activation, service composition, UI wiring.
 - `src/commands/*`: command registration split by domain.
-- `src/commands/sessionCommands.ts`: connect/disconnect/chat/session actions.
+- `src/commands/sessionCommands.ts`: create/open/disconnect/chat/session actions.
 - `src/commands/configCommands.ts`: add/remove agent and registry actions.
-- `src/core/SessionManager.ts`: active agent/session lifecycle, prompts, cancel, mode/model changes.
+- `src/core/SessionManager.ts`: visible session-instance lifecycle, active session switching, prompts, cancel, mode/model changes.
 - `src/core/AgentManager.ts`: resolves launch config and spawns/kills agent processes.
 - `src/core/ConnectionManager.ts`: ACP connection setup, initialization, traffic logging.
 - `src/core/AcpClientImpl.ts`: client-side ACP methods exposed back to agents.
 - `src/handlers/*`: file system, terminal, permission, and session update handling.
 - `src/ui/ChatWebviewProvider.ts`: VS Code webview bridge and chat command handling.
+- `src/ui/SessionTreeProvider.ts`: Agents tree with agent rows and connected session-instance children.
 - `src/shared/acpAdapters.ts`: ACP payload normalization for extension and webview.
 - `webview/*`: React chat UI and reducer-based timeline state.
 - `src/shared/bridge.ts`: typed message contract between extension and webview.
@@ -75,7 +78,17 @@ Extension to webview:
 
 ## Important Notes
 
-- User-facing model is one connected agent, though ACP sessions are used internally.
+- User-facing model is a configured agent list with connected session instances as children.
+- Each connected session instance owns its own spawned agent process, ACP connection, and ACP `sessionId`.
+- Multiple sessions can exist for the same configured agent, and multiple agents can have live sessions at the same time.
+- The chat webview opens exactly one active session instance at a time; switching is done by clicking a session child in the Agents tree.
+- `acp.connectAgent` is retained as the command id, but user-facing behavior/title is Create Agent Instance.
+- `acp.openSession` opens an existing connected session instance in chat.
+- `acp.disconnectSession` disconnects one session instance; disconnected session instances are removed from the tree.
+- `acp.disconnectAgent` still exists as a compatibility/helper command and disconnects all live sessions for an agent, but agent-list UI should not expose an agent-level disconnect action.
+- Agent rows are expanded by default. If an agent has no connected sessions, show a `No instances` child row.
+- Parent agent rows show connected/disconnected state only. Busy spinners belong on session rows, not parent agent rows.
+- The parent agent row Create Instance action uses the connect/plug icon. The plus icon is reserved for Add Agent.
 - Agent responses are rendered mostly from normalized `sessionUpdate`, not only the final prompt response.
 - File attachment currently prepends file paths into prompt text; it is not structured ACP attachment handling.
 - Terminal capability runs real child processes and mirrors output into VS Code terminals.
@@ -107,3 +120,5 @@ Extension to webview:
 - `npm run test:unit`: Vitest unit tests.
 - `npm test`: VS Code extension tests.
 - `npm run package`: production build.
+- `npx vsce package --no-dependencies`: package the VSIX; this runs `vscode:prepublish`.
+- `code-server --install-extension ./oacp-<version>.vsix`: install the packaged VSIX into code-server.

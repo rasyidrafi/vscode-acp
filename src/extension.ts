@@ -12,7 +12,7 @@ import { log, disposeChannels } from './utils/Logger';
 import { initTelemetry, sendEvent } from './utils/TelemetryManager';
 
 export function activate(context: vscode.ExtensionContext): void {
-  log('ACP Client extension activating...');
+  log('OACP extension activating...');
 
   // --- Telemetry ---
   const telemetryReporter = initTelemetry();
@@ -96,10 +96,10 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
-  sendEvent('extension/activated', { version: vscode.extensions.getExtension('formulahendry.acp-client')?.packageJSON?.version ?? 'unknown' });
-  log('ACP Client extension activated.');
+  sendEvent('extension/activated', { version: vscode.extensions.getExtension('rasyidrafi.oacp')?.packageJSON?.version ?? 'unknown' });
+  log('OACP extension activated.');
 }
 
 export function deactivate(): void {
-  log('ACP Client extension deactivated.');
+  log('OACP extension deactivated.');
 }

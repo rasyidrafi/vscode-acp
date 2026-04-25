@@ -1,8 +1,8 @@
-# ACP Client for VS Code
+# OACP
 
-A [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=formulahendry.acp-client) that provides a client for the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) — connect to any ACP-compatible AI coding agent directly from your editor.
+Open ACP client VS Code extension. OACP is a [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=rasyidrafi.oacp) that provides a client for the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/) — connect to any ACP-compatible AI coding agent directly from your editor.
 
-![ACP Client Screenshot](resources/screenshot.png)
+![OACP Screenshot](resources/screenshot.png)
 
 ## Features
 
@@ -21,8 +21,8 @@ A [Visual Studio Code extension](https://marketplace.visualstudio.com/items?item
 
 ## Quick Start
 
-1. Install: [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=formulahendry.acp-client) | [Open in VS Code](https://vscode.dev/redirect?url=vscode%3Aextension%2Fformulahendry.acp-client) | [Open VSX Marketplace](https://open-vsx.org/extension/formulahendry/acp-client)
-2. Open the ACP Client panel from the Activity Bar (ACP icon)
+1. Install: [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rasyidrafi.oacp) | [Open in VS Code](https://vscode.dev/redirect?url=vscode%3Aextension%2Frasyidrafi.oacp) | [Open VSX Marketplace](https://open-vsx.org/extension/rasyidrafi/oacp)
+2. Open the OACP panel from the Activity Bar (OACP icon)
 3. Click **+** to add an agent configuration, or use the defaults
 4. Click an agent to connect
 5. Start chatting!
@@ -69,7 +69,7 @@ This is useful for CLIs like Gemini that may already be installed locally, while
 | `acp.agents` | *(11 agents)* | Agent configurations. Each key is the agent name, with optional `binaryPath`, `binaryName`, `binaryArgs`, plus fallback `command`, `args`, and `env`. |
 | `acp.autoApprovePermissions` | `ask` | How agent permission requests are handled: `ask` or `allowAll`. |
 | `acp.defaultWorkingDirectory` | `""` | Default working directory for agent sessions. Empty uses current workspace. |
-| `acp.logTraffic` | `true` | Log all ACP protocol traffic to the ACP Traffic output channel. |
+| `acp.logTraffic` | `true` | Log all ACP protocol traffic to the OACP Traffic output channel. |
 
 ## Commands
 
@@ -77,20 +77,20 @@ All commands are accessible via the Command Palette (`Ctrl+Shift+P`):
 
 | Command | Description |
 |---------|-------------|
-| `ACP: Connect to Agent` | Connect to an agent |
-| `ACP: New Conversation` | Start a new conversation with the connected agent |
-| `ACP: Send Prompt` | Send a message to the agent |
-| `ACP: Cancel Current Turn` | Cancel the current agent turn |
-| `ACP: Disconnect Agent` | Disconnect from the current agent |
-| `ACP: Restart Agent` | Restart the current agent process |
-| `ACP: Open Chat Panel` | Focus the chat webview |
-| `ACP: Add Agent Configuration` | Add a new agent to settings |
-| `ACP: Remove Agent` | Remove an agent configuration |
-| `ACP: Set Agent Mode` | Change the agent's operating mode |
-| `ACP: Set Agent Model` | Change the agent's model |
-| `ACP: Show Log` | Open the ACP Client log output channel |
-| `ACP: Show Protocol Traffic` | Open the ACP Traffic output channel |
-| `ACP: Browse Agent Registry` | Browse the ACP agent registry |
+| `OACP: Connect to Agent` | Connect to an agent |
+| `OACP: New Conversation` | Start a new conversation with the connected agent |
+| `OACP: Send Prompt` | Send a message to the agent |
+| `OACP: Cancel Current Turn` | Cancel the current agent turn |
+| `OACP: Disconnect Agent` | Disconnect from the current agent |
+| `OACP: Restart Agent` | Restart the current agent process |
+| `OACP: Open Chat Panel` | Focus the chat webview |
+| `OACP: Add Agent Configuration` | Add a new agent to settings |
+| `OACP: Remove Agent` | Remove an agent configuration |
+| `OACP: Set Agent Mode` | Change the agent's operating mode |
+| `OACP: Set Agent Model` | Change the agent's model |
+| `OACP: Show Log` | Open the OACP log output channel |
+| `OACP: Show Protocol Traffic` | Open the OACP Traffic output channel |
+| `OACP: Browse Agent Registry` | Browse the ACP agent registry |
 
 ## Keyboard Shortcuts
 
@@ -109,8 +109,8 @@ All commands are accessible via the Command Palette (`Ctrl+Shift+P`):
 ### Setup
 
 ```bash
-git clone https://github.com/formulahendry/vscode-acp.git
-cd vscode-acp
+git clone https://github.com/rasyidrafi/vscode-oacp.git
+cd vscode-oacp
 npm install
 ```
 
@@ -157,15 +157,12 @@ Communication with agents uses the ACP protocol (JSON-RPC 2.0 over stdio).
 
 ## Links
 
-- [ACP Client on Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=formulahendry.acp-client)
+- [OACP on Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rasyidrafi.oacp)
 - [Agent Client Protocol](https://agentclientprotocol.com/)
-- [GitHub Repository](https://github.com/formulahendry/vscode-acp)
-
-## Related Projects
-
-- [ACP UI](https://github.com/formulahendry/acp-ui) — A modern, cross-platform desktop client for the Agent Client Protocol (ACP)
-- [WeChat ACP](https://github.com/formulahendry/wechat-acp) — Bridge WeChat chat messages to any ACP-compatible AI agent (Claude, Codex, Copilot, Qwen, Gemini, OpenCode and more)
+- [GitHub Repository](https://github.com/rasyidrafi/vscode-oacp)
 
 ## License
+
+Forked from [formulahendry/vscode-acp](https://github.com/formulahendry/vscode-acp).
 
 MIT — see [LICENSE](LICENSE) for details.

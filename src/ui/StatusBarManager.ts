@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { SessionManager } from '../core/SessionManager';
 
 /**
- * Manages the status bar item showing ACP connection status.
+ * Manages the status bar item showing OACP connection status.
  */
 export class StatusBarManager {
   private statusBarItem: vscode.StatusBarItem;
@@ -28,12 +28,12 @@ export class StatusBarManager {
     const connectedAgents = this.sessionManager.getConnectedAgentNames();
 
     if (connectedAgents.length === 0) {
-      this.statusBarItem.text = '$(hubot) ACP: Disconnected';
+      this.statusBarItem.text = '$(hubot) OACP: Disconnected';
       this.statusBarItem.tooltip = 'Click to connect to an agent';
       this.statusBarItem.backgroundColor = undefined;
     } else {
       const agentName = activeSession?.agentDisplayName || connectedAgents[0];
-      this.statusBarItem.text = `$(hubot) ACP: ${agentName}`;
+      this.statusBarItem.text = `$(hubot) OACP: ${agentName}`;
       this.statusBarItem.tooltip = `Connected to ${agentName}\n${connectedAgents.length} agent(s) connected`;
       this.statusBarItem.backgroundColor = undefined;
     }
@@ -42,7 +42,7 @@ export class StatusBarManager {
   }
 
   private showError(): void {
-    this.statusBarItem.text = '$(error) ACP: Error';
+    this.statusBarItem.text = '$(error) OACP: Error';
     this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
   }
 

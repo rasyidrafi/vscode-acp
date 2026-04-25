@@ -1,19 +1,19 @@
 {
-  "name": "acp-client",
-  "displayName": "ACP Client",
-  "description": "Agent Client Protocol client for VS Code — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
+  "name": "oacp",
+  "displayName": "OACP",
+  "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
   "version": "0.4.1",
-  "publisher": "formulahendry",
+  "publisher": "rasyidrafi",
+  "author": "rasyidrafi",
   "license": "MIT",
   "icon": "resources/icon.png",
   "bugs": {
-    "url": "https://github.com/formulahendry/vscode-acp/issues",
-    "email": "formulahendry@gmail.com"
+    "url": "https://github.com/rasyidrafi/vscode-oacp/issues"
   },
-  "homepage": "https://github.com/formulahendry/vscode-acp/blob/main/README.md",
+  "homepage": "https://github.com/rasyidrafi/vscode-oacp/blob/main/README.md",
   "repository": {
     "type": "git",
-    "url": "https://github.com/formulahendry/vscode-acp.git"
+    "url": "https://github.com/rasyidrafi/vscode-oacp.git"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -35,14 +35,14 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "acp-client",
-          "title": "ACP Client",
+          "id": "oacp",
+          "title": "OACP",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "acp-client": [
+      "oacp": [
         {
           "id": "acp-sessions",
           "name": "Agents",
@@ -68,64 +68,64 @@
     "commands": [
       {
         "command": "acp.connectAgent",
-        "title": "ACP: Connect to Agent",
+        "title": "OACP: Connect to Agent",
         "icon": "$(plug)"
       },
       {
         "command": "acp.newConversation",
-        "title": "ACP: New Conversation",
+        "title": "OACP: New Conversation",
         "icon": "$(add)"
       },
       {
         "command": "acp.sendPrompt",
-        "title": "ACP: Send Prompt"
+        "title": "OACP: Send Prompt"
       },
       {
         "command": "acp.cancelTurn",
-        "title": "ACP: Cancel Current Turn",
+        "title": "OACP: Cancel Current Turn",
         "icon": "$(debug-stop)"
       },
       {
         "command": "acp.disconnectAgent",
-        "title": "ACP: Disconnect Agent",
+        "title": "OACP: Disconnect Agent",
         "icon": "$(debug-disconnect)"
       },
       {
         "command": "acp.openChat",
-        "title": "ACP: Open Chat Panel"
+        "title": "OACP: Open Chat Panel"
       },
       {
         "command": "acp.addAgent",
-        "title": "ACP: Add Agent Configuration",
+        "title": "OACP: Add Agent Configuration",
         "icon": "$(add)"
       },
       {
         "command": "acp.removeAgent",
-        "title": "ACP: Remove Agent"
+        "title": "OACP: Remove Agent"
       },
       {
         "command": "acp.showLog",
-        "title": "ACP: Show Log"
+        "title": "OACP: Show Log"
       },
       {
         "command": "acp.showTraffic",
-        "title": "ACP: Show Protocol Traffic"
+        "title": "OACP: Show Protocol Traffic"
       },
       {
         "command": "acp.browseRegistry",
-        "title": "ACP: Browse Agent Registry"
+        "title": "OACP: Browse Agent Registry"
       },
       {
         "command": "acp.setMode",
-        "title": "ACP: Set Agent Mode"
+        "title": "OACP: Set Agent Mode"
       },
       {
         "command": "acp.setModel",
-        "title": "ACP: Set Agent Model"
+        "title": "OACP: Set Agent Model"
       },
       {
         "command": "acp.attachFile",
-        "title": "ACP: Attach File to Prompt",
+        "title": "OACP: Attach File to Prompt",
         "icon": "$(attach)"
       },
       {
@@ -135,12 +135,12 @@
       },
       {
         "command": "acp.openSettings",
-        "title": "ACP Settings",
+        "title": "OACP Settings",
         "icon": "$(settings-gear)"
       },
       {
         "command": "acp.restartAgent",
-        "title": "ACP: Restart Agent",
+        "title": "OACP: Restart Agent",
         "icon": "$(debug-restart)"
       }
     ],
@@ -241,7 +241,7 @@
       }
     ],
     "configuration": {
-      "title": "ACP Client",
+      "title": "OACP",
       "properties": {
         "acp.agents": {
           "type": "object",

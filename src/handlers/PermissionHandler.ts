@@ -46,7 +46,7 @@ export class PermissionHandler {
 
     const selection = await vscode.window.showQuickPick(items, {
       placeHolder: title,
-      title: 'ACP Agent Permission Request',
+      title: 'OACP Agent Permission Request',
       ignoreFocusOut: true,
     });
 

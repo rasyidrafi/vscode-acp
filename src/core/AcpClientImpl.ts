@@ -27,7 +27,7 @@ import { SessionUpdateHandler } from '../handlers/SessionUpdateHandler';
 import { log } from '../utils/Logger';
 
 /**
- * ACP Client implementation for VS Code.
+ * ACP protocol client implementation for VS Code.
  * Delegates to individual handlers for each capability.
  *
  * Passed as a factory to ClientSideConnection:

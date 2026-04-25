@@ -10,7 +10,7 @@ import { getAvailableCommands, type BridgeSessionNotification } from '../shared/
 import { getChatWebviewHtml } from './webviewHtml';
 
 /**
- * WebviewViewProvider for the ACP chat sidebar.
+ * WebviewViewProvider for the OACP chat sidebar.
  * Wires VS Code webview lifecycle, bridge messages, and session actions.
  */
 export class ChatWebviewProvider implements vscode.WebviewViewProvider {

@@ -20,7 +20,7 @@ function registerAddAgentCommand(services: CommandServices): vscode.Disposable {
     const name = await vscode.window.showInputBox({
       prompt: 'Agent name',
       placeHolder: 'my-agent',
-      title: 'Add ACP Agent',
+      title: 'Add OACP Agent',
     });
     if (!name) { return; }
 
@@ -64,7 +64,7 @@ function registerRemoveAgentCommand(services: CommandServices): vscode.Disposabl
 
     const name = getAgentName(target) ?? await vscode.window.showQuickPick(agentNames, {
       placeHolder: 'Select agent to remove',
-      title: 'Remove ACP Agent',
+      title: 'Remove OACP Agent',
     });
     if (!name) { return; }
 
@@ -112,8 +112,8 @@ function registerBrowseRegistryCommand(): vscode.Disposable {
       }
 
       await vscode.window.showQuickPick(items, {
-        placeHolder: 'ACP Agent Registry',
-        title: 'Available ACP Agents',
+        placeHolder: 'OACP Agent Registry',
+        title: 'Available OACP Agents',
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);

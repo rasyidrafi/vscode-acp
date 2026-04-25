@@ -236,7 +236,7 @@ function registerOpenSettingsCommand(): vscode.Disposable {
     sendEvent('command/openSettings');
     await vscode.commands.executeCommand(
       'workbench.action.openSettings',
-      '@ext:formulahendry.acp-client',
+      '@ext:rasyidrafi.oacp',
     );
   });
 }

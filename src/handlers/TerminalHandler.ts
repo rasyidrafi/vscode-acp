@@ -111,7 +111,7 @@ export class TerminalHandler {
       close() { /* no-op */ },
     };
     const vsTerminal = vscode.window.createTerminal({
-      name: `ACP: ${params.command}`,
+      name: `OACP: ${params.command}`,
       pty,
     });
 

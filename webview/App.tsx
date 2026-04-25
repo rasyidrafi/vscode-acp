@@ -68,7 +68,7 @@ export function App(): ReactElement {
           <div className={hasSession ? 'empty-state session-ready' : 'empty-state'}>
             <header className="empty-header">
               <div className="empty-welcome">
-                <h1>{hasSession ? `Chat with ${state.session?.agentName || 'Agent'}` : 'Welcome to ACP Client'}</h1>
+                <h1>{hasSession ? `Chat with ${state.session?.agentName || 'Agent'}` : 'Welcome to OACP'}</h1>
                 <p>
                   {hasSession
                     ? 'Ask for a change, investigation, or review.'

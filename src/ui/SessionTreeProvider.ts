@@ -52,7 +52,7 @@ class AgentTreeItem extends vscode.TreeItem {
 }
 
 /**
- * TreeDataProvider for the ACP Agents sidebar view.
+ * TreeDataProvider for the OACP Agents sidebar view.
  * Shows a flat list of configured agents with connected/disconnected state.
  */
 export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeItem> {

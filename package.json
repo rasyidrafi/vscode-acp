@@ -2,7 +2,7 @@
   "name": "oacp",
   "displayName": "OACP",
   "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.5.12",
+  "version": "0.5.13",
   "publisher": "rasyidrafi",
   "author": "rasyidrafi",
   "license": "MIT",

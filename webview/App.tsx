@@ -1,5 +1,5 @@
 import { Plug, X } from 'lucide-react';
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import type { ExtensionToWebviewMessage } from '../src/shared/bridge';
@@ -21,15 +21,34 @@ export function App(): ReactElement {
   );
   const [composerMenuState, setComposerMenuState] = useState<ComposerMenuState | null>(null);
 
+  const submitPrompt = useCallback((text: string): void => {
+    const attachmentPrefix = state.attachedFiles.length > 0
+      ? `Attached files:\n${state.attachedFiles.map((file) => `- ${file.path}`).join('\n')}\n\n`
+      : '';
+    const promptText = `${attachmentPrefix}${text}`;
+    dispatch({ type: 'promptSubmitted', text });
+    if (state.attachedFiles.length > 0) {
+      dispatch({ type: 'attachmentsConsumed' });
+    }
+    postToExtension({ type: 'sendPrompt', text: promptText });
+  }, [state.attachedFiles, dispatch]);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent<ExtensionToWebviewMessage>) => {
+      if (event.data.type === 'requestSendPrompt') {
+        const input = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
+        if (input && !input.disabled) {
+          submitPrompt(input.value);
+        }
+        return;
+      }
       dispatch({ type: 'extensionMessage', message: event.data });
     };
 
     window.addEventListener('message', onMessage);
     postToExtension({ type: 'ready' });
     return () => window.removeEventListener('message', onMessage);
-  }, []);
+  }, [submitPrompt, dispatch]);
 
   useEffect(() => {
     setPersistedState(toPersistedState(state));
@@ -42,18 +61,6 @@ export function App(): ReactElement {
       hasChatContent: state.messages.length > 0 || state.activities.length > 0,
     });
   }, [state.activeSessionId, state.messages.length, state.activities.length]);
-
-  function submitPrompt(text: string): void {
-    const attachmentPrefix = state.attachedFiles.length > 0
-      ? `Attached files:\n${state.attachedFiles.map((file) => `- ${file.path}`).join('\n')}\n\n`
-      : '';
-    const promptText = `${attachmentPrefix}${text}`;
-    dispatch({ type: 'promptSubmitted', text });
-    if (state.attachedFiles.length > 0) {
-      dispatch({ type: 'attachmentsConsumed' });
-    }
-    postToExtension({ type: 'sendPrompt', text: promptText });
-  }
 
   function cancelTurn(): void {
     postToExtension({ type: 'cancelTurn' });

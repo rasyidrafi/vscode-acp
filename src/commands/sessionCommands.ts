@@ -253,7 +253,7 @@ function registerSendPromptCommand(services: CommandServices): vscode.Disposable
       vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
       return;
     }
-    void vscode.commands.executeCommand('acp-chat.focus');
+    services.chatWebviewProvider.requestSendPrompt();
   });
 }
 

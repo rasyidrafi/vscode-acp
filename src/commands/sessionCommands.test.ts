@@ -90,6 +90,7 @@ function createServices() {
     },
     chatWebviewProvider: {
       hasChatContent: false,
+      requestSendPrompt: vi.fn(),
       attachFile: vi.fn(),
     },
   };
@@ -158,7 +159,7 @@ describe('sessionCommands', () => {
     expect(executeCommandMock).not.toHaveBeenCalledWith('acp-chat.focus');
   });
 
-  it('sendPrompt focuses chat when active session exists', async () => {
+  it('sendPrompt requests prompt submission when active session exists', async () => {
     const services = createServices();
     (services.sessionManager.getActiveSessionId as ReturnType<typeof vi.fn>).mockReturnValue('session-1');
     registerSessionCommands(services as never);
@@ -166,7 +167,7 @@ describe('sessionCommands', () => {
 
     await commands.get('acp.sendPrompt')?.();
 
-    expect(executeCommandMock).toHaveBeenCalledWith('acp-chat.focus');
+    expect(services.chatWebviewProvider.requestSendPrompt).toHaveBeenCalled();
   });
 
   it('cancelTurn shows no-active-session info and does not cancel', async () => {

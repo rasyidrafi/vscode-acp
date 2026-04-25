@@ -49,6 +49,7 @@ export type ExtensionToWebviewMessage =
       usage?: unknown;
     }
   | { type: 'error'; message: string }
+  | { type: 'requestSendPrompt' }
   | { type: 'clearChat' }
   | { type: 'fileAttached'; file: AttachedFile }
   | { type: 'modesUpdate'; modes: SessionModeState | null }

@@ -284,6 +284,14 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Ask the webview composer to submit the current prompt text.
+   */
+  requestSendPrompt(): void {
+    this.postMessage({ type: 'requestSendPrompt' });
+    this.view?.show?.(true);
+  }
+
+  /**
    * Clear the chat history and reset to welcome state.
    * Called when starting a new conversation.
    */

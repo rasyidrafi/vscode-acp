@@ -146,7 +146,7 @@
       },
       {
         "command": "acp.openSettings",
-        "title": "OACP Settings",
+        "title": "OACP: Settings",
         "icon": "$(settings-gear)"
       },
       {

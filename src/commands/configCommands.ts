@@ -337,11 +337,13 @@ function registerRemoveAgentCommand(services: CommandServices): vscode.Disposabl
 
     let agentId = getAgentName(target);
     if (!agentId) {
-      const picked = await vscode.window.showQuickPick(agentIds.map((id) => ({
-        label: agents[id]?.displayName || id,
-        description: id,
-        agentId: id,
-      })), {
+      const picked = await vscode.window.showQuickPick(agentIds
+        .map((id) => ({
+          label: agents[id]?.displayName || id,
+          description: id,
+          agentId: id,
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label)), {
         placeHolder: 'Select agent to remove',
         title: 'Remove OACP Agent',
       });

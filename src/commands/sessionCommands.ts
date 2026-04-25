@@ -6,6 +6,16 @@ import type { CommandServices, AgentCommandTarget } from './types';
 import { getAgentName, getSessionId, registerCommand, registerTypedCommand } from './types';
 import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
 
+function getConnectedAgentQuickPickItems(agentNames: string[]): Array<vscode.QuickPickItem & { agentName: string }> {
+  return agentNames
+    .map((name) => ({
+      label: getAgentDisplayName(name),
+      description: name,
+      agentName: name,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
 export function registerSessionCommands(services: CommandServices): vscode.Disposable[] {
   return [
     registerConnectAgentCommand(services),
@@ -132,24 +142,11 @@ function registerDisconnectAgentCommand(services: CommandServices): vscode.Dispo
         return;
       }
 
-      if (connectedAgentNames.length === 1) {
-        [agentName] = connectedAgentNames;
-      } else {
-        const picked = await vscode.window.showQuickPick(
-          connectedAgentNames
-            .map((name) => ({
-              label: getAgentDisplayName(name),
-              description: name,
-              agentName: name,
-            }))
-            .sort((left, right) => left.label.localeCompare(right.label)),
-          {
-            placeHolder: 'Select connected agent to disconnect',
-            title: 'Disconnect OACP Agent',
-          },
-        );
-        agentName = picked?.agentName;
-      }
+      const picked = await vscode.window.showQuickPick(getConnectedAgentQuickPickItems(connectedAgentNames), {
+        placeHolder: 'Select connected agent to disconnect',
+        title: 'Disconnect OACP Agent',
+      });
+      agentName = picked?.agentName;
     }
 
     if (!agentName) {
@@ -210,23 +207,33 @@ function registerCancelTurnCommand(services: CommandServices): vscode.Disposable
 
 function registerRestartAgentCommand(services: CommandServices): vscode.Disposable {
   return registerCommand('acp.restartAgent', async () => {
-    const activeSession = services.sessionManager.getActiveSession();
-    if (!activeSession) { return; }
+    const connectedAgentNames = services.sessionManager.getConnectedAgentNames();
+    if (connectedAgentNames.length === 0) {
+      vscode.window.showInformationMessage('No agent connected.');
+      return;
+    }
 
-    const agentName = activeSession.agentName;
+    const picked = await vscode.window.showQuickPick(getConnectedAgentQuickPickItems(connectedAgentNames), {
+      placeHolder: 'Select connected agent to restart',
+      title: 'Restart OACP Agent',
+    });
+    const agentName = picked?.agentName;
+    if (!agentName) { return; }
+
+    const agentDisplayName = getAgentDisplayName(agentName);
     try {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Restarting ${activeSession.agentDisplayName}...`,
+          title: `Restarting ${agentDisplayName}...`,
           cancellable: false,
         },
         async () => {
-          await services.sessionManager.disconnectAgent(agentName);
+          await services.sessionManager.disconnectAgent(agentName!);
           await services.sessionManager.connectToAgent(agentName);
         },
       );
-      vscode.window.showInformationMessage(`Restarted ${agentName}`);
+      vscode.window.showInformationMessage(`Restarted ${agentDisplayName}.`);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       vscode.window.showErrorMessage(`Failed to restart: ${message}`);

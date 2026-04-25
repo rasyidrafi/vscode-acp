@@ -53,12 +53,18 @@ export function getAgentDisplayName(agentId: string): string {
   return getAgentConfig(agentId)?.displayName || agentId;
 }
 
-export function getAgentQuickPickItems(): Array<vscode.QuickPickItem & { agentId: string }> {
+export function getAgentQuickPickItems(
+  options?: { includeRegistryVersionDetail?: boolean },
+): Array<vscode.QuickPickItem & { agentId: string }> {
+  const includeRegistryVersionDetail = options?.includeRegistryVersionDetail === true;
+
   return Object.entries(getAgentConfigs())
     .map(([agentId, config]) => ({
       label: config.displayName || agentId,
       description: agentId,
-      detail: config.registryVersion ? `Registry version ${config.registryVersion}` : undefined,
+      detail: includeRegistryVersionDetail && config.registryVersion
+        ? `Registry version ${config.registryVersion}`
+        : undefined,
       agentId,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));

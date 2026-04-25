@@ -293,7 +293,7 @@ describe('SessionManager', () => {
     });
     showInformationMessageMock.mockResolvedValue('Authenticate');
 
-    const session = await manager.connectToAgent('Codex');
+    const session = await manager.createSessionInstance('Codex');
 
     expect(authenticate).toHaveBeenCalledWith({ methodId: 'login' });
     expect(newSession).toHaveBeenCalledTimes(2);
@@ -302,5 +302,328 @@ describe('SessionManager', () => {
       agentId: 'agent-auth',
       agentName: 'Codex',
     });
+  });
+
+  it('loads an existing ACP session when selected from agent session list', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const child = { process: {} };
+    const listSessions = vi.fn().mockResolvedValue({
+      sessions: [
+        { sessionId: 'sess-existing', cwd: process.cwd(), title: 'Existing Session', updatedAt: '2026-04-25T00:00:00.000Z' },
+      ],
+      nextCursor: null,
+    });
+    const loadSession = vi.fn().mockResolvedValue({
+      modes: null,
+      models: null,
+      configOptions: [],
+    });
+    const newSession = vi.fn();
+
+    agentManager.spawnAgent.mockReturnValue({ id: 'agent-list' });
+    agentManager.getAgent.mockReturnValue(child);
+    connectionManager.connect.mockResolvedValue({
+      connection: {
+        listSessions,
+        loadSession,
+        newSession,
+      },
+      initResponse: {
+        agentInfo: { name: 'Codex' },
+        agentCapabilities: { sessionCapabilities: { list: {} } },
+      },
+    });
+    showQuickPickMock.mockResolvedValueOnce({ label: 'Existing Session', sessionId: 'sess-existing' });
+
+    const session = await manager.createSessionInstance('Codex');
+
+    expect(listSessions).toHaveBeenCalledTimes(1);
+    expect(loadSession).toHaveBeenCalledWith({
+      sessionId: 'sess-existing',
+      cwd: process.cwd(),
+      mcpServers: [],
+    });
+    expect(newSession).not.toHaveBeenCalled();
+    expect(session.sessionId).toBe('sess-existing');
+  });
+
+  it('creates a new ACP session when discovery is available but user chooses new', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const child = { process: {} };
+    const listSessions = vi.fn().mockResolvedValue({
+      sessions: [
+        { sessionId: 'sess-existing', cwd: process.cwd(), title: 'Existing Session', updatedAt: '2026-04-25T00:00:00.000Z' },
+      ],
+      nextCursor: null,
+    });
+    const loadSession = vi.fn();
+    const newSession = vi.fn().mockResolvedValue({
+      sessionId: 'sess-new',
+      modes: null,
+      models: null,
+    });
+
+    agentManager.spawnAgent.mockReturnValue({ id: 'agent-new' });
+    agentManager.getAgent.mockReturnValue(child);
+    connectionManager.connect.mockResolvedValue({
+      connection: {
+        listSessions,
+        loadSession,
+        newSession,
+      },
+      initResponse: {
+        agentInfo: { name: 'Codex' },
+        agentCapabilities: { sessionCapabilities: { list: {} } },
+      },
+    });
+    showQuickPickMock.mockResolvedValueOnce({ label: '$(add) Start new session' });
+
+    const session = await manager.createSessionInstance('Codex');
+
+    expect(listSessions).toHaveBeenCalledTimes(1);
+    expect(loadSession).not.toHaveBeenCalled();
+    expect(newSession).toHaveBeenCalledTimes(1);
+    expect(session.sessionId).toBe('sess-new');
+  });
+
+  it('deduplicates in-flight createSessionFromTask calls for the same task', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const child = { process: {} };
+    const loadSession = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return {
+        modes: null,
+        models: null,
+        configOptions: [],
+      };
+    });
+
+    agentManager.spawnAgent.mockReturnValue({ id: 'agent-task' });
+    agentManager.getAgent.mockReturnValue(child);
+    connectionManager.connect.mockResolvedValue({
+      connection: {
+        loadSession,
+        newSession: vi.fn(),
+      },
+      initResponse: {
+        agentInfo: { name: 'Codex' },
+      },
+    });
+
+    const [sessionA, sessionB] = await Promise.all([
+      manager.createSessionFromTask('Codex', 'task-1'),
+      manager.createSessionFromTask('Codex', 'task-1'),
+    ]);
+
+    expect(sessionA.sessionId).toBe('task-1');
+    expect(sessionB.sessionId).toBe('task-1');
+    expect(agentManager.spawnAgent).toHaveBeenCalledTimes(1);
+    expect(connectionManager.connect).toHaveBeenCalledTimes(1);
+    expect(loadSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses the newest non-busy session for task switch when task history is supported', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const oldSession = createSession({
+      sessionId: 'session-old',
+      agentId: 'agent-1',
+      agentName: 'Codex',
+      initResponse: {
+        agentCapabilities: { sessionCapabilities: { list: {} } },
+      } as SessionInfo['initResponse'],
+    });
+    seedSession(manager, oldSession);
+
+    const loadSession = vi.fn().mockResolvedValue({
+      modes: null,
+      models: null,
+      configOptions: [],
+    });
+    connectionManager.getConnection.mockReturnValue({
+      connection: { loadSession },
+      initResponse: oldSession.initResponse,
+    });
+
+    const switched = await manager.createSessionFromTask('Codex', 'task-target');
+
+    expect(connectionManager.getConnection).toHaveBeenCalledWith('agent-1');
+    expect(loadSession).toHaveBeenCalledWith({
+      sessionId: 'task-target',
+      cwd: '/workspace',
+      mcpServers: [],
+    });
+    expect(agentManager.spawnAgent).not.toHaveBeenCalled();
+    expect(switched.sessionId).toBe('task-target');
+    expect(switched.sourceTaskSessionId).toBe('task-target');
+    expect(manager.getSession('session-old')).toBeUndefined();
+    expect(manager.getSession('task-target')).toBe(switched);
+  });
+
+  it('does not reuse existing session for task switch when agent lacks task history support', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const oldSession = createSession({
+      sessionId: 'session-old',
+      agentId: 'agent-1',
+      agentName: 'Codex',
+      initResponse: {} as SessionInfo['initResponse'],
+    });
+    seedSession(manager, oldSession);
+
+    const child = { process: {} };
+    agentManager.spawnAgent.mockReturnValue({ id: 'agent-task-new' });
+    agentManager.getAgent.mockReturnValue(child);
+    connectionManager.connect.mockResolvedValue({
+      connection: {
+        loadSession: vi.fn().mockResolvedValue({ modes: null, models: null, configOptions: [] }),
+        newSession: vi.fn(),
+      },
+      initResponse: {
+        agentInfo: { name: 'Codex' },
+      },
+    });
+    connectionManager.getConnection.mockReturnValue({
+      connection: { loadSession: vi.fn() },
+      initResponse: oldSession.initResponse,
+    });
+
+    const created = await manager.createSessionFromTask('Codex', 'task-new');
+
+    expect(agentManager.spawnAgent).toHaveBeenCalledTimes(1);
+    expect(created.sessionId).toBe('task-new');
+    expect(created.agentId).toBe('agent-task-new');
+  });
+
+  it('recovers when loadSession reports target task is already loaded (copilot cli behavior)', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const oldSession = createSession({
+      sessionId: 'task-1',
+      sourceTaskSessionId: 'task-1',
+      agentId: 'agent-1',
+      agentName: 'Codex',
+      initResponse: {
+        agentCapabilities: { sessionCapabilities: { list: {} } },
+      } as SessionInfo['initResponse'],
+    });
+    seedSession(manager, oldSession);
+
+    const closeSession = vi.fn().mockResolvedValue(undefined);
+    const loadSession = vi.fn()
+      .mockResolvedValueOnce({
+        modes: null,
+        models: null,
+        configOptions: [],
+      })
+      .mockRejectedValueOnce(new Error('Session task-1 is already loaded'));
+    connectionManager.getConnection.mockReturnValue({
+      connection: { closeSession, loadSession },
+      initResponse: oldSession.initResponse,
+    });
+
+    const switchedToTask2 = await manager.createSessionFromTask('Codex', 'task-2');
+    const switchedTask2Id = switchedToTask2.sessionId;
+    const reopenedTask1 = await manager.createSessionFromTask('Codex', 'task-1');
+    const reopenedTask1Id = reopenedTask1.sessionId;
+
+    expect(switchedTask2Id).toBe('task-2');
+    expect(reopenedTask1Id).toBe('task-1');
+    expect(reopenedTask1.sourceTaskSessionId).toBe('task-1');
+    expect(closeSession).toHaveBeenCalledTimes(2);
+    expect(loadSession).toHaveBeenCalledTimes(2);
+    expect(manager.getSession('task-1')).toBe(reopenedTask1);
+    expect(manager.getSession('task-2')).toBeUndefined();
+  });
+
+  it('tracks pending source/target task switch state while reusing an idle instance', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const oldSession = createSession({
+      sessionId: 'task-1',
+      sourceTaskSessionId: 'task-1',
+      agentId: 'agent-1',
+      agentName: 'Codex',
+      initResponse: {
+        agentCapabilities: { sessionCapabilities: { list: {} } },
+      } as SessionInfo['initResponse'],
+    });
+    seedSession(manager, oldSession);
+
+    let resolveLoad!: () => void;
+    const loadGate = new Promise<void>((resolve) => {
+      resolveLoad = resolve;
+    });
+
+    const closeSession = vi.fn().mockResolvedValue(undefined);
+    const loadSession = vi.fn().mockImplementation(async () => {
+      await loadGate;
+      return {
+        modes: null,
+        models: null,
+        configOptions: [],
+      };
+    });
+    connectionManager.getConnection.mockReturnValue({
+      connection: { closeSession, loadSession },
+      initResponse: oldSession.initResponse,
+    });
+
+    const switching = manager.createSessionFromTask('Codex', 'task-2');
+    await Promise.resolve();
+
+    expect(manager.isTaskSwitchSourcePending('Codex', 'task-1')).toBe(true);
+    expect(manager.isTaskSwitchTargetPending('Codex', 'task-2')).toBe(true);
+
+    resolveLoad();
+    await switching;
+
+    expect(manager.isTaskSwitchSourcePending('Codex', 'task-1')).toBe(false);
+    expect(manager.isTaskSwitchTargetPending('Codex', 'task-2')).toBe(false);
   });
 });

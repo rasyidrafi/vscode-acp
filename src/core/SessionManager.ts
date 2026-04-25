@@ -1,7 +1,18 @@
 import * as vscode from 'vscode';
 import { EventEmitter } from 'node:events';
 
-import type { NewSessionResponse, PromptResponse, InitializeResponse, ContentBlock, SessionModeState, SessionModelState, AvailableCommand } from '@agentclientprotocol/sdk';
+import type {
+  NewSessionResponse,
+  LoadSessionResponse,
+  PromptResponse,
+  InitializeResponse,
+  ContentBlock,
+  SessionModeState,
+  SessionModelState,
+  AvailableCommand,
+  ListSessionsResponse,
+  SessionInfo as AcpListedSessionInfo,
+} from '@agentclientprotocol/sdk';
 import { RequestError } from '@agentclientprotocol/sdk';
 
 import { AgentManager } from './AgentManager';
@@ -14,6 +25,8 @@ import { getSessionModels } from '../shared/acpAdapters';
 
 export interface SessionInfo {
   sessionId: string;
+  /** ACP task/session id used to load this session, if applicable. */
+  sourceTaskSessionId?: string;
   agentId: string;
   agentName: string;
   agentDisplayName: string;
@@ -24,6 +37,22 @@ export interface SessionInfo {
   models: SessionModelState | null;
   availableCommands: AvailableCommand[];
   busy: boolean;
+}
+
+export interface CreateSessionOptions {
+  /**
+   * Load an existing ACP session instead of creating a fresh one.
+   */
+  loadSessionId?: string;
+  /**
+   * Skip ACP session discovery and force session/new.
+   */
+  skipAcpSessionDiscovery?: boolean;
+}
+
+export interface AgentTaskPage {
+  tasks: AcpListedSessionInfo[];
+  nextCursor: string | null;
 }
 
 /**
@@ -38,6 +67,11 @@ export interface SessionInfo {
 export class SessionManager extends EventEmitter {
   private sessions: Map<string, SessionInfo> = new Map();
   private activeSessionId: string | null = null;
+  private inFlightTaskSessionCreates: Map<string, Promise<SessionInfo>> = new Map();
+  private pendingTaskSwitchByAgent: Map<string, {
+    targetCounts: Map<string, number>;
+    sourceCounts: Map<string, number>;
+  }> = new Map();
 
   /** Maps agentName → live session ids for that configured agent. */
   private agentSessions: Map<string, Set<string>> = new Map();
@@ -84,13 +118,13 @@ export class SessionManager extends EventEmitter {
    * Backward-compatible alias for creating a new session instance.
    */
   async connectToAgent(agentName: string): Promise<SessionInfo> {
-    return this.createSessionInstance(agentName);
+    return this.createSessionInstance(agentName, { skipAcpSessionDiscovery: true });
   }
 
   /**
    * Create a new connected session instance for an agent and open it in chat.
    */
-  async createSessionInstance(agentName: string): Promise<SessionInfo> {
+  async createSessionInstance(agentName: string, options: CreateSessionOptions = {}): Promise<SessionInfo> {
     const configs = getAgentConfigs();
     const config = configs[agentName];
     if (!config) {
@@ -122,8 +156,17 @@ export class SessionManager extends EventEmitter {
         throw e;
       }
 
+      const sessionToLoad = options.loadSessionId
+        ?? await this.pickExistingSessionToLoad(
+          agentName,
+          agentId,
+          connInfo,
+          workspaceCwd,
+          options.skipAcpSessionDiscovery === true,
+        );
+
       // Create ACP session (with auth handling)
-      const sessionInfo = await this.createAcpSession(agentName, agentId, connInfo, workspaceCwd);
+      const sessionInfo = await this.createAcpSession(agentName, agentId, connInfo, workspaceCwd, sessionToLoad);
 
       this.sessions.set(sessionInfo.sessionId, sessionInfo);
       this.addAgentSession(agentName, sessionInfo.sessionId);
@@ -152,7 +195,183 @@ export class SessionManager extends EventEmitter {
       return null;
     }
 
-    return this.createSessionInstance(activeSession.agentName);
+    return this.createSessionInstance(activeSession.agentName, { skipAcpSessionDiscovery: true });
+  }
+
+  /**
+   * Load an ACP-listed task/session for an agent into a live connected instance.
+   */
+  async createSessionFromTask(agentName: string, taskSessionId: string): Promise<SessionInfo> {
+    const existing = this.getSessionForTask(agentName, taskSessionId);
+    if (existing) {
+      this.activeSessionId = existing.sessionId;
+      this.emit('active-session-changed', existing.sessionId);
+      return existing;
+    }
+
+    const key = `${agentName}::${taskSessionId}`;
+    const inFlight = this.inFlightTaskSessionCreates.get(key);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const createPromise = (async () => {
+      const reused = await this.reuseIdleSessionForTask(agentName, taskSessionId);
+      if (reused) {
+        return reused;
+      }
+      return this.createSessionInstance(agentName, {
+        loadSessionId: taskSessionId,
+        skipAcpSessionDiscovery: true,
+      });
+    })();
+
+    this.inFlightTaskSessionCreates.set(key, createPromise);
+    try {
+      return await createPromise;
+    } finally {
+      if (this.inFlightTaskSessionCreates.get(key) === createPromise) {
+        this.inFlightTaskSessionCreates.delete(key);
+      }
+    }
+  }
+
+  private async reuseIdleSessionForTask(agentName: string, taskSessionId: string): Promise<SessionInfo | null> {
+    const reusable = [...this.getSessionsForAgent(agentName)]
+      .reverse()
+      .find((session) => !session.busy);
+    if (!reusable) {
+      return null;
+    }
+
+    const supportsTaskHistory = reusable.initResponse.agentCapabilities?.sessionCapabilities?.list != null;
+    if (!supportsTaskHistory) {
+      return null;
+    }
+
+    const connInfo = this.connectionManager.getConnection(reusable.agentId);
+    if (!connInfo) {
+      return null;
+    }
+    const connection = connInfo.connection as typeof connInfo.connection & {
+      closeSession?: (params: { sessionId: string }) => Promise<unknown>;
+    };
+
+    const oldSessionId = reusable.sessionId;
+    const oldTaskSessionId = reusable.sourceTaskSessionId ?? oldSessionId;
+    this.beginTaskSwitch(agentName, oldTaskSessionId, taskSessionId);
+    reusable.busy = true;
+    this.emit('busy-changed', oldSessionId, true);
+
+    try {
+      // Best-effort unload of the currently bound session before switching task.
+      // Some agents reject loadSession for a task ID that is still considered loaded.
+      if (connection.closeSession) {
+        try {
+          await connection.closeSession({ sessionId: oldSessionId });
+        } catch (closeError) {
+          logError(`Failed to close session ${oldSessionId} before task switch`, closeError);
+        }
+      }
+
+      let response: LoadSessionResponse;
+      try {
+        response = await this.withAuthRetry(agentName, reusable.agentId, connInfo, async () => (
+          connection.loadSession({
+            sessionId: taskSessionId,
+            cwd: reusable.cwd,
+            mcpServers: [],
+          })
+        ), 'loadSession');
+      } catch (loadError) {
+        // Copilot CLI can return "Session <id> is already loaded" during rapid task hops.
+        // If we can resolve that to an existing instance (or current instance), avoid surfacing
+        // a hard failure and just focus/open the already-loaded task.
+        if (!this.isAlreadyLoadedSessionError(loadError, taskSessionId)) {
+          throw loadError;
+        }
+
+        const existing = this.getSessionForTask(agentName, taskSessionId);
+        if (existing) {
+          this.activeSessionId = existing.sessionId;
+          this.emit('active-session-changed', existing.sessionId);
+          return existing;
+        }
+
+        response = {
+          modes: reusable.modes,
+          models: reusable.models,
+          configOptions: null,
+        };
+      }
+
+      // Remap keys from the old loaded task/new-session id to the target task id.
+      if (oldSessionId !== taskSessionId) {
+        this.sessions.delete(oldSessionId);
+        this.sessions.set(taskSessionId, reusable);
+
+        const sessionIds = this.agentSessions.get(agentName);
+        if (sessionIds) {
+          sessionIds.delete(oldSessionId);
+          sessionIds.add(taskSessionId);
+        }
+
+        if (this.agentIdSessions.get(reusable.agentId) === oldSessionId) {
+          this.agentIdSessions.set(reusable.agentId, taskSessionId);
+        }
+      }
+
+      reusable.sessionId = taskSessionId;
+      reusable.sourceTaskSessionId = taskSessionId;
+      reusable.modes = response.modes ?? null;
+      reusable.models = getSessionModels(response);
+      this.activeSessionId = taskSessionId;
+      this.emit('active-session-changed', taskSessionId);
+      return reusable;
+    } finally {
+      this.endTaskSwitch(agentName, oldTaskSessionId, taskSessionId);
+      reusable.busy = false;
+      this.emit('busy-changed', reusable.sessionId, false);
+    }
+  }
+
+  private beginTaskSwitch(agentName: string, fromTaskSessionId: string, toTaskSessionId: string): void {
+    const entry = this.pendingTaskSwitchByAgent.get(agentName) ?? {
+      targetCounts: new Map<string, number>(),
+      sourceCounts: new Map<string, number>(),
+    };
+    entry.targetCounts.set(toTaskSessionId, (entry.targetCounts.get(toTaskSessionId) ?? 0) + 1);
+    entry.sourceCounts.set(fromTaskSessionId, (entry.sourceCounts.get(fromTaskSessionId) ?? 0) + 1);
+    this.pendingTaskSwitchByAgent.set(agentName, entry);
+    this.emit('task-switch-state-changed', agentName);
+  }
+
+  private endTaskSwitch(agentName: string, fromTaskSessionId: string, toTaskSessionId: string): void {
+    const entry = this.pendingTaskSwitchByAgent.get(agentName);
+    if (!entry) {
+      return;
+    }
+
+    const targetCount = (entry.targetCounts.get(toTaskSessionId) ?? 0) - 1;
+    if (targetCount > 0) {
+      entry.targetCounts.set(toTaskSessionId, targetCount);
+    } else {
+      entry.targetCounts.delete(toTaskSessionId);
+    }
+
+    const sourceCount = (entry.sourceCounts.get(fromTaskSessionId) ?? 0) - 1;
+    if (sourceCount > 0) {
+      entry.sourceCounts.set(fromTaskSessionId, sourceCount);
+    } else {
+      entry.sourceCounts.delete(fromTaskSessionId);
+    }
+
+    if (entry.targetCounts.size === 0 && entry.sourceCounts.size === 0) {
+      this.pendingTaskSwitchByAgent.delete(agentName);
+    } else {
+      this.pendingTaskSwitchByAgent.set(agentName, entry);
+    }
+    this.emit('task-switch-state-changed', agentName);
   }
 
   /**
@@ -203,95 +422,39 @@ export class SessionManager extends EventEmitter {
     agentId: string,
     connInfo: ConnectionInfo,
     cwd: string,
+    sessionToLoad?: string,
   ): Promise<SessionInfo> {
-    let sessionResponse: NewSessionResponse;
+    let sessionId: string;
+    let sessionResponse: NewSessionResponse | LoadSessionResponse;
     try {
-      sessionResponse = await connInfo.connection.newSession({
-        cwd,
-        mcpServers: [],
-      });
-    } catch (e: any) {
-      // Check for auth_required error (code -32000)
-      const isAuthRequired = (e instanceof RequestError && e.code === -32000)
-        || (e?.code === -32000)
-        || (typeof e?.message === 'string' && /auth.?required/i.test(e.message));
-
-      if (!isAuthRequired) {
-        logError('Failed to create session', e);
-        this.agentManager.killAgent(agentId);
-        throw e;
-      }
-
-      // Auth required — gather available methods
-      const authMethods = connInfo.initResponse.authMethods;
-      if (!authMethods || authMethods.length === 0) {
-        this.agentManager.killAgent(agentId);
-        throw new Error(
-          `Agent "${agentName}" requires authentication but did not advertise any auth methods.`,
-        );
-      }
-
-      log(`Agent requires authentication. Methods: ${authMethods.map(m => m.name).join(', ')}`);
-
-      // Let the user choose an auth method
-      let selectedMethod = authMethods[0];
-      if (authMethods.length > 1) {
-        const picked = await vscode.window.showQuickPick(
-          authMethods.map(m => ({
-            label: m.name,
-            description: m.description || '',
-            detail: `ID: ${m.id}`,
-            method: m,
-          })),
-          {
-            placeHolder: 'Select an authentication method',
-            title: `${agentName} requires authentication`,
-          },
-        );
-        if (!picked) {
-          this.agentManager.killAgent(agentId);
-          throw new Error('Authentication cancelled by user.');
-        }
-        selectedMethod = picked.method;
+      if (sessionToLoad) {
+        sessionResponse = await this.withAuthRetry(agentName, agentId, connInfo, async () => (
+          connInfo.connection.loadSession({
+            sessionId: sessionToLoad,
+            cwd,
+            mcpServers: [],
+          })
+        ), 'loadSession');
+        sessionId = sessionToLoad;
       } else {
-        // Single auth method — show a confirmation
-        const confirm = await vscode.window.showInformationMessage(
-          `${agentName} requires authentication via "${selectedMethod.name}".`,
-          { modal: true, detail: selectedMethod.description || undefined },
-          'Authenticate',
-        );
-        if (confirm !== 'Authenticate') {
-          this.agentManager.killAgent(agentId);
-          throw new Error('Authentication cancelled by user.');
-        }
+        const newSessionResponse = await this.withAuthRetry(agentName, agentId, connInfo, async () => (
+          connInfo.connection.newSession({
+            cwd,
+            mcpServers: [],
+          })
+        ), 'newSession');
+        sessionResponse = newSessionResponse;
+        sessionId = newSessionResponse.sessionId;
       }
-
-      // Perform authentication
-      try {
-        log(`Authenticating with method: ${selectedMethod.name} (${selectedMethod.id})`);
-        await connInfo.connection.authenticate({ methodId: selectedMethod.id });
-        log('Authentication successful');
-      } catch (authErr: any) {
-        logError('Authentication failed', authErr);
-        this.agentManager.killAgent(agentId);
-        throw new Error(`Authentication failed: ${authErr.message}`);
-      }
-
-      // Retry session/new after successful authentication
-      try {
-        sessionResponse = await connInfo.connection.newSession({
-          cwd,
-          mcpServers: [],
-        });
-      } catch (retryErr) {
-        logError('Failed to create session after authentication', retryErr);
-        this.agentManager.killAgent(agentId);
-        throw retryErr;
-      }
+    } catch (e: any) {
+      logError(`Failed to ${sessionToLoad ? 'load' : 'create'} session`, e);
+      this.agentManager.killAgent(agentId);
+      throw e;
     }
 
     return {
-      sessionId: sessionResponse.sessionId,
+      sessionId,
+      ...(sessionToLoad ? { sourceTaskSessionId: sessionToLoad } : {}),
       agentId,
       agentName,
       agentDisplayName: connInfo.initResponse.agentInfo?.title ||
@@ -306,6 +469,247 @@ export class SessionManager extends EventEmitter {
       availableCommands: [],
       busy: false,
     };
+  }
+
+  private async pickExistingSessionToLoad(
+    agentName: string,
+    agentId: string,
+    connInfo: ConnectionInfo,
+    cwd: string,
+    skipDiscovery: boolean,
+  ): Promise<string | undefined> {
+    if (skipDiscovery) {
+      return undefined;
+    }
+
+    if (!connInfo.initResponse.agentCapabilities?.sessionCapabilities?.list) {
+      return undefined;
+    }
+
+    const sessions = await this.listAgentSessions(agentName, agentId, connInfo, cwd);
+    if (sessions.length === 0) {
+      return undefined;
+    }
+
+    const items: Array<vscode.QuickPickItem & { sessionId?: string }> = [
+      {
+        label: '$(add) Start new session',
+        description: 'Create a fresh session context',
+      },
+      ...sessions.map((session) => ({
+        label: session.title?.trim() || `Session ${session.sessionId.slice(0, 8)}`,
+        description: session.updatedAt
+          ? `${session.sessionId} • updated ${new Date(session.updatedAt).toLocaleString()}`
+          : session.sessionId,
+        detail: session.cwd,
+        sessionId: session.sessionId,
+      })),
+    ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      title: `${connInfo.initResponse.agentInfo?.title ?? agentName} Sessions`,
+      placeHolder: 'Load an existing ACP session or start a new one',
+    });
+
+    return picked?.sessionId;
+  }
+
+  private async listAgentSessions(
+    agentName: string,
+    agentId: string,
+    connInfo: ConnectionInfo,
+    cwd: string,
+  ): Promise<ListSessionsResponse['sessions']> {
+    const allSessions: ListSessionsResponse['sessions'] = [];
+    let cursor: string | null | undefined = undefined;
+    do {
+      const response = await this.withAuthRetry(agentName, agentId, connInfo, async () => (
+        connInfo.connection.listSessions({
+          cwd,
+          cursor: cursor ?? undefined,
+        })
+      ), 'listSessions');
+      allSessions.push(...response.sessions);
+      cursor = response.nextCursor;
+    } while (cursor);
+
+    allSessions.sort((left, right) => {
+      const leftTs = left.updatedAt ? Date.parse(left.updatedAt) : 0;
+      const rightTs = right.updatedAt ? Date.parse(right.updatedAt) : 0;
+      return rightTs - leftTs;
+    });
+    return allSessions;
+  }
+
+  /**
+   * Fetch ACP task list (session/list) via a temporary connection.
+   * This does not create a visible live session instance.
+   */
+  async listAgentTasks(agentName: string): Promise<AcpListedSessionInfo[] | null> {
+    const configs = getAgentConfigs();
+    const config = configs[agentName];
+    if (!config) {
+      throw new Error(`Unknown agent: ${agentName}`);
+    }
+
+    const workspaceCwd = this.getWorkspaceCwd();
+    const temp = this.agentManager.spawnAgent(agentName, config, workspaceCwd);
+    const tempAgentId = temp.id;
+
+    try {
+      const processInfo = this.agentManager.getAgent(tempAgentId);
+      if (!processInfo) {
+        throw new Error('Agent process not found after spawn');
+      }
+      const connInfo = await this.connectionManager.connect(tempAgentId, processInfo.process);
+      if (!connInfo.initResponse.agentCapabilities?.sessionCapabilities?.list) {
+        return null;
+      }
+      return await this.listAgentSessions(agentName, tempAgentId, connInfo, workspaceCwd);
+    } finally {
+      this.connectionManager.disposeConnection(tempAgentId);
+      this.agentManager.killAgent(tempAgentId);
+    }
+  }
+
+  /**
+   * Fetch one page of ACP task history (session/list) via a temporary connection.
+   * Returns null when the agent does not support task history.
+   */
+  async listAgentTasksPage(agentName: string, cursor?: string): Promise<AgentTaskPage | null> {
+    const configs = getAgentConfigs();
+    const config = configs[agentName];
+    if (!config) {
+      throw new Error(`Unknown agent: ${agentName}`);
+    }
+
+    const workspaceCwd = this.getWorkspaceCwd();
+    const temp = this.agentManager.spawnAgent(agentName, config, workspaceCwd);
+    const tempAgentId = temp.id;
+
+    try {
+      const processInfo = this.agentManager.getAgent(tempAgentId);
+      if (!processInfo) {
+        throw new Error('Agent process not found after spawn');
+      }
+
+      const connInfo = await this.connectionManager.connect(tempAgentId, processInfo.process);
+      if (!connInfo.initResponse.agentCapabilities?.sessionCapabilities?.list) {
+        return null;
+      }
+
+      const response = await this.withAuthRetry(agentName, tempAgentId, connInfo, async () => (
+        connInfo.connection.listSessions({
+          cwd: workspaceCwd,
+          cursor,
+        })
+      ), 'listSessions');
+
+      return {
+        tasks: response.sessions,
+        nextCursor: response.nextCursor ?? null,
+      };
+    } finally {
+      this.connectionManager.disposeConnection(tempAgentId);
+      this.agentManager.killAgent(tempAgentId);
+    }
+  }
+
+  private isAuthRequiredError(e: unknown): boolean {
+    const err = e as { code?: unknown; message?: unknown } | undefined;
+    return (e instanceof RequestError && e.code === -32000)
+      || err?.code === -32000
+      || (typeof err?.message === 'string' && /auth.?required/i.test(err.message));
+  }
+
+  private isAlreadyLoadedSessionError(error: unknown, sessionId: string): boolean {
+    const message = String((error as { message?: unknown } | undefined)?.message ?? '');
+    if (!message) {
+      return false;
+    }
+    const escapedId = sessionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`session\\s+${escapedId}\\s+is\\s+already\\s+loaded`, 'i');
+    return pattern.test(message);
+  }
+
+  private async authenticateAgentSession(
+    agentName: string,
+    connInfo: ConnectionInfo,
+  ): Promise<void> {
+    const authMethods = connInfo.initResponse.authMethods;
+    if (!authMethods || authMethods.length === 0) {
+      throw new Error(`Agent "${agentName}" requires authentication but did not advertise any auth methods.`);
+    }
+
+    log(`Agent requires authentication. Methods: ${authMethods.map(m => m.name).join(', ')}`);
+
+    let selectedMethod = authMethods[0];
+    if (authMethods.length > 1) {
+      const picked = await vscode.window.showQuickPick(
+        authMethods.map(m => ({
+          label: m.name,
+          description: m.description || '',
+          detail: `ID: ${m.id}`,
+          method: m,
+        })),
+        {
+          placeHolder: 'Select an authentication method',
+          title: `${agentName} requires authentication`,
+        },
+      );
+      if (!picked) {
+        throw new Error('Authentication cancelled by user.');
+      }
+      selectedMethod = picked.method;
+    } else {
+      const confirm = await vscode.window.showInformationMessage(
+        `${agentName} requires authentication via "${selectedMethod.name}".`,
+        { modal: true, detail: selectedMethod.description || undefined },
+        'Authenticate',
+      );
+      if (confirm !== 'Authenticate') {
+        throw new Error('Authentication cancelled by user.');
+      }
+    }
+
+    try {
+      log(`Authenticating with method: ${selectedMethod.name} (${selectedMethod.id})`);
+      await connInfo.connection.authenticate({ methodId: selectedMethod.id });
+      log('Authentication successful');
+    } catch (authErr: any) {
+      logError('Authentication failed', authErr);
+      throw new Error(`Authentication failed: ${authErr?.message || String(authErr)}`);
+    }
+  }
+
+  private async withAuthRetry<T>(
+    agentName: string,
+    agentId: string,
+    connInfo: ConnectionInfo,
+    action: () => Promise<T>,
+    actionName: string,
+  ): Promise<T> {
+    try {
+      return await action();
+    } catch (e) {
+      if (!this.isAuthRequiredError(e)) {
+        throw e;
+      }
+
+      try {
+        await this.authenticateAgentSession(agentName, connInfo);
+      } catch (authError) {
+        this.agentManager.killAgent(agentId);
+        throw authError;
+      }
+
+      try {
+        return await action();
+      } catch (retryError) {
+        logError(`Failed to ${actionName} after authentication`, retryError);
+        throw retryError;
+      }
+    }
   }
 
   /**
@@ -408,6 +812,21 @@ export class SessionManager extends EventEmitter {
 
   getSession(sessionId: string): SessionInfo | undefined {
     return this.sessions.get(sessionId);
+  }
+
+  getSessionForTask(agentName: string, taskSessionId: string): SessionInfo | undefined {
+    const sessions = this.getSessionsForAgent(agentName);
+    return sessions.find((session) =>
+      session.sessionId === taskSessionId || session.sourceTaskSessionId === taskSessionId,
+    );
+  }
+
+  isTaskSwitchTargetPending(agentName: string, taskSessionId: string): boolean {
+    return (this.pendingTaskSwitchByAgent.get(agentName)?.targetCounts.get(taskSessionId) ?? 0) > 0;
+  }
+
+  isTaskSwitchSourcePending(agentName: string, taskSessionId: string): boolean {
+    return (this.pendingTaskSwitchByAgent.get(agentName)?.sourceCounts.get(taskSessionId) ?? 0) > 0;
   }
 
   getActiveSession(): SessionInfo | undefined {
@@ -519,6 +938,7 @@ export class SessionManager extends EventEmitter {
     this.sessions.clear();
     this.agentSessions.clear();
     this.agentIdSessions.clear();
+    this.pendingTaskSwitchByAgent.clear();
     this.agentManager.off('agent-error', this.handleAgentError);
     this.agentManager.off('agent-closed', this.handleAgentClosed);
   }

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { getOutputChannel, getTrafficChannel, logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
 import type { CommandServices, AgentCommandTarget } from './types';
-import { getAgentName, getSessionId, registerCommand, registerTypedCommand } from './types';
+import { getAgentName, getSessionId, getTaskSessionId, registerCommand, registerTypedCommand } from './types';
 import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
 import { getShortSessionId } from '../shared/sessionDisplay';
 
@@ -36,6 +36,8 @@ function getSessionQuickPickItems(
 export function registerSessionCommands(services: CommandServices): vscode.Disposable[] {
   return [
     registerConnectAgentCommand(services),
+    registerOpenAgentTaskCommand(services),
+    registerLoadMoreAgentTasksCommand(services),
     registerOpenSessionCommand(services),
     registerNewConversationCommand(services),
     registerDisconnectSessionCommand(services),
@@ -84,7 +86,7 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
           cancellable: false,
         },
         async () => {
-          await services.sessionManager.createSessionInstance(agentName!);
+          await services.sessionManager.createSessionInstance(agentName!, { skipAcpSessionDiscovery: true });
         },
       );
       void vscode.commands.executeCommand('acp-chat.focus');
@@ -93,6 +95,46 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
       const message = e instanceof Error ? e.message : String(e);
       vscode.window.showErrorMessage(`Failed to create session: ${message}`);
     }
+  });
+}
+
+function registerOpenAgentTaskCommand(services: CommandServices): vscode.Disposable {
+  return registerTypedCommand<[AgentCommandTarget | undefined]>('acp.openAgentTask', async (target) => {
+    const agentName = getAgentName(target);
+    const taskSessionId = getTaskSessionId(target);
+    if (!agentName || !taskSessionId) {
+      vscode.window.showWarningMessage('Task session context is missing.');
+      return;
+    }
+
+    const agentDisplayName = getAgentDisplayName(agentName);
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Opening ${agentDisplayName} task...`,
+          cancellable: false,
+        },
+        async () => {
+          await services.sessionManager.createSessionFromTask(agentName, taskSessionId);
+        },
+      );
+      void vscode.commands.executeCommand('acp-chat.focus');
+    } catch (e: unknown) {
+      logError('Failed to open agent task session', e);
+      const message = e instanceof Error ? e.message : String(e);
+      vscode.window.showErrorMessage(`Failed to open task: ${message}`);
+    }
+  });
+}
+
+function registerLoadMoreAgentTasksCommand(services: CommandServices): vscode.Disposable {
+  return registerTypedCommand<[AgentCommandTarget | undefined]>('acp.loadMoreAgentTasks', async (target) => {
+    const agentName = getAgentName(target);
+    if (!agentName) {
+      return;
+    }
+    await services.sessionTreeProvider.loadMoreAgentTasks(agentName);
   });
 }
 

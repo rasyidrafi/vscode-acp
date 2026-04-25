@@ -1,6 +1,5 @@
 import type {
   AvailableCommand,
-  NewSessionResponse,
   SessionModelState,
 } from '@agentclientprotocol/sdk';
 import type {
@@ -81,8 +80,8 @@ export function getAvailableCommands(update: BridgeSessionUpdate): AvailableComm
   return update.availableCommands;
 }
 
-export function getSessionModels(response: NewSessionResponse): SessionModelState | null {
-  const value = (response as NewSessionResponse & { models?: unknown }).models;
+export function getSessionModels(response: { models?: unknown }): SessionModelState | null {
+  const value = response.models;
   return isSessionModelState(value) ? value : null;
 }
 

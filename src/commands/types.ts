@@ -14,6 +14,7 @@ export interface AgentCommandTarget {
   agentName?: string;
   agentId?: string;
   sessionId?: string;
+  taskSessionId?: string;
 }
 
 export function getAgentName(target: string | AgentCommandTarget | undefined): string | undefined {
@@ -28,6 +29,13 @@ export function getSessionId(target: string | AgentCommandTarget | undefined): s
     return target;
   }
   return target?.sessionId;
+}
+
+export function getTaskSessionId(target: string | AgentCommandTarget | undefined): string | undefined {
+  if (typeof target === 'string') {
+    return undefined;
+  }
+  return target?.taskSessionId;
 }
 
 export function registerCommand(

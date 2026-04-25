@@ -87,6 +87,7 @@ function createServices() {
     },
     sessionTreeProvider: {
       refresh: vi.fn(),
+      loadMoreAgentTasks: vi.fn(),
     },
     chatWebviewProvider: {
       hasChatContent: false,
@@ -131,6 +132,7 @@ describe('sessionCommands', () => {
     expect(commandIds).toEqual(expect.arrayContaining([
       'acp.connectAgent',
       'acp.openSession',
+      'acp.loadMoreAgentTasks',
       'acp.newConversation',
       'acp.disconnectSession',
       'acp.disconnectActiveSession',
@@ -325,5 +327,15 @@ describe('sessionCommands', () => {
     expect(sendEventMock).toHaveBeenCalledWith('command/showTraffic');
     expect(outputShowMock).toHaveBeenCalled();
     expect(trafficShowMock).toHaveBeenCalled();
+  });
+
+  it('loadMoreAgentTasks forwards to sessionTreeProvider', async () => {
+    const services = createServices();
+    registerSessionCommands(services as never);
+    const commands = buildCommandMap();
+
+    await commands.get('acp.loadMoreAgentTasks')?.({ agentName: 'Codex' });
+
+    expect(services.sessionTreeProvider.loadMoreAgentTasks).toHaveBeenCalledWith('Codex');
   });
 });

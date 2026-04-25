@@ -85,6 +85,36 @@ function seedSession(manager: SessionManager, session: SessionInfo): void {
 }
 
 describe('SessionManager', () => {
+  it('newConversation creates another session for the active agent', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    seedSession(manager, createSession({
+      sessionId: 'session-1',
+      agentId: 'agent-1',
+      agentName: 'Codex',
+    }));
+
+    const child = { process: {} };
+    agentManager.spawnAgent.mockReturnValueOnce({ id: 'agent-2' });
+    agentManager.getAgent.mockReturnValueOnce(child);
+    connectionManager.connect.mockResolvedValueOnce({
+      connection: { newSession: vi.fn().mockResolvedValue({ sessionId: 'session-2' }) },
+      initResponse: { agentInfo: { name: 'Codex' } },
+    });
+
+    const created = await manager.newConversation();
+
+    expect(created?.sessionId).toBe('session-2');
+    expect(manager.getActiveSessionId()).toBe('session-2');
+    expect(manager.getSessionsForAgent('Codex').map(item => item.sessionId)).toEqual(['session-1', 'session-2']);
+  });
+
   it('creates a new live session for the same agent', async () => {
     const agentManager = new FakeAgentManager();
     const connectionManager = new FakeConnectionManager();

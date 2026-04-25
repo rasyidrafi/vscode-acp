@@ -9,6 +9,8 @@ import { isWebviewToExtensionMessage } from '../shared/bridge';
 import { getAvailableCommands, type BridgeSessionNotification } from '../shared/acpAdapters';
 import { getChatWebviewHtml } from './webviewHtml';
 
+const NO_ACTIVE_SESSION_MESSAGE = 'No active session instance. Create or open a session first.';
+
 /**
  * WebviewViewProvider for the OACP chat sidebar.
  * Wires VS Code webview lifecycle, bridge messages, and session actions.
@@ -152,7 +154,7 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     if (!activeId) {
       this.postMessage({
         type: 'error',
-        message: 'No active session. Create a session first.',
+        message: NO_ACTIVE_SESSION_MESSAGE,
       });
       return;
     }
@@ -202,7 +204,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    */
   private async handleSetMode(modeId: string): Promise<void> {
     const activeId = this.sessionManager.getActiveSessionId();
-    if (!activeId || !modeId) { return; }
+    if (!activeId) {
+      this.postMessage({ type: 'error', message: NO_ACTIVE_SESSION_MESSAGE });
+      return;
+    }
+    if (!modeId) { return; }
     try {
       await this.sessionManager.setMode(activeId, modeId);
     } catch (e: any) {
@@ -216,7 +222,11 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
    */
   private async handleSetModel(modelId: string): Promise<void> {
     const activeId = this.sessionManager.getActiveSessionId();
-    if (!activeId || !modelId) { return; }
+    if (!activeId) {
+      this.postMessage({ type: 'error', message: NO_ACTIVE_SESSION_MESSAGE });
+      return;
+    }
+    if (!modelId) { return; }
     try {
       await this.sessionManager.setModel(activeId, modelId);
     } catch (e: any) {

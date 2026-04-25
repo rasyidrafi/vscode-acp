@@ -7,6 +7,8 @@ import { getAgentName, getSessionId, registerCommand, registerTypedCommand } fro
 import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
 import { getShortSessionId } from '../shared/sessionDisplay';
 
+const NO_ACTIVE_SESSION_MESSAGE = 'No active session instance. Create or open a session first.';
+
 function getConnectedAgentQuickPickItems(agentNames: string[]): Array<vscode.QuickPickItem & { agentName: string }> {
   return agentNames
     .map((name) => ({
@@ -40,7 +42,7 @@ export function registerSessionCommands(services: CommandServices): vscode.Dispo
     registerDisconnectActiveSessionCommand(services),
     registerDisconnectAgentCommand(services),
     registerOpenChatCommand(),
-    registerSendPromptCommand(),
+    registerSendPromptCommand(services),
     registerCancelTurnCommand(services),
     registerRestartAgentCommand(services),
     registerShowLogCommand(),
@@ -96,7 +98,21 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
 
 function registerOpenSessionCommand(services: CommandServices): vscode.Disposable {
   return registerTypedCommand<[string | AgentCommandTarget | undefined]>('acp.openSession', async (target) => {
-    const sessionId = getSessionId(target);
+    let sessionId = getSessionId(target);
+    if (!sessionId) {
+      const sessionItems = getSessionQuickPickItems(services);
+      if (sessionItems.length === 0) {
+        vscode.window.showInformationMessage('No session instance connected.');
+        return;
+      }
+
+      const picked = await vscode.window.showQuickPick(sessionItems, {
+        placeHolder: 'Select a session instance to open',
+        title: 'Open Session Instance',
+      });
+      sessionId = picked?.sessionId;
+    }
+
     if (!sessionId) {
       return;
     }
@@ -119,15 +135,6 @@ function registerNewConversationCommand(services: CommandServices): vscode.Dispo
       return;
     }
 
-    if (services.chatWebviewProvider.hasChatContent) {
-      const choice = await vscode.window.showWarningMessage(
-        'Start a new conversation? This will clear the current chat history.',
-        'New Conversation',
-        'Cancel',
-      );
-      if (choice !== 'New Conversation') { return; }
-    }
-
     try {
       await vscode.window.withProgress(
         {
@@ -139,6 +146,7 @@ function registerNewConversationCommand(services: CommandServices): vscode.Dispo
           await services.sessionManager.newConversation();
         },
       );
+      void vscode.commands.executeCommand('acp-chat.focus');
     } catch (e: unknown) {
       logError('Failed to start new conversation', e);
       const message = e instanceof Error ? e.message : String(e);
@@ -238,8 +246,13 @@ function registerOpenChatCommand(): vscode.Disposable {
   });
 }
 
-function registerSendPromptCommand(): vscode.Disposable {
+function registerSendPromptCommand(services: CommandServices): vscode.Disposable {
   return registerCommand('acp.sendPrompt', () => {
+    const activeSessionId = services.sessionManager.getActiveSessionId();
+    if (!activeSessionId) {
+      vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
+      return;
+    }
     void vscode.commands.executeCommand('acp-chat.focus');
   });
 }
@@ -248,7 +261,7 @@ function registerCancelTurnCommand(services: CommandServices): vscode.Disposable
   return registerCommand('acp.cancelTurn', async () => {
     const activeId = services.sessionManager.getActiveSessionId();
     if (!activeId) {
-      vscode.window.showInformationMessage('No active session instance. Create or open a session first.');
+      vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
       return;
     }
     try {
@@ -312,7 +325,10 @@ function registerShowTrafficCommand(): vscode.Disposable {
 function registerSetModeCommand(services: CommandServices): vscode.Disposable {
   return registerTypedCommand<[string | undefined]>('acp.setMode', async (modeId) => {
     const activeId = services.sessionManager.getActiveSessionId();
-    if (!activeId) { return; }
+    if (!activeId) {
+      vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
+      return;
+    }
 
     let nextModeId = modeId;
     if (!nextModeId) {
@@ -333,7 +349,10 @@ function registerSetModeCommand(services: CommandServices): vscode.Disposable {
 function registerSetModelCommand(services: CommandServices): vscode.Disposable {
   return registerTypedCommand<[string | undefined]>('acp.setModel', async (modelId) => {
     const activeId = services.sessionManager.getActiveSessionId();
-    if (!activeId) { return; }
+    if (!activeId) {
+      vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
+      return;
+    }
 
     let nextModelId = modelId;
     if (!nextModelId) {
@@ -365,7 +384,7 @@ function registerAttachFileCommand(services: CommandServices): vscode.Disposable
   return registerCommand('acp.attachFile', async () => {
     const activeSessionId = services.sessionManager.getActiveSessionId();
     if (!activeSessionId) {
-      vscode.window.showInformationMessage('No active session instance. Create or open a session first.');
+      vscode.window.showInformationMessage(NO_ACTIVE_SESSION_MESSAGE);
       return;
     }
 

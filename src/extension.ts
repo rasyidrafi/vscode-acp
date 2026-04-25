@@ -53,11 +53,6 @@ export function activate(context: vscode.ExtensionContext): void {
     chatWebviewProvider.notifyActiveSessionChanged();
   });
 
-  // Clear chat when new conversation is started
-  sessionManager.on('clear-chat', () => {
-    chatWebviewProvider.clearChat();
-  });
-
   // Forward mode/model changes to webview
   sessionManager.on('mode-changed', (_sessionId: string, _modeId: string) => {
     const session = sessionManager.getActiveSession();

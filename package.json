@@ -2,7 +2,7 @@
   "name": "oacp",
   "displayName": "OACP",
   "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.5.8",
+  "version": "0.5.12",
   "publisher": "rasyidrafi",
   "author": "rasyidrafi",
   "license": "MIT",
@@ -121,7 +121,8 @@
       },
       {
         "command": "acp.removeAgent",
-        "title": "OACP: Remove Agent"
+        "title": "OACP: Remove Agent",
+        "icon": "$(trash)"
       },
       {
         "command": "acp.showLog",
@@ -168,14 +169,19 @@
           "group": "z_acp@1"
         },
         {
-          "command": "acp.attachFile",
+          "command": "acp.newConversation",
           "when": "view == acp-chat",
           "group": "navigation@1"
         },
         {
+          "command": "acp.disconnectActiveSession",
+          "when": "view == acp-chat",
+          "group": "navigation@2"
+        },
+        {
           "command": "acp.cancelTurn",
           "when": "view == acp-chat && acp.turnInProgress",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "acp.openSettings",
@@ -216,7 +222,8 @@
         },
         {
           "command": "acp.removeAgent",
-          "when": "view == acp-sessions && viewItem =~ /^agent/"
+          "when": "view == acp-sessions && viewItem =~ /^agent/",
+          "group": "inline@4"
         }
       ]
     },

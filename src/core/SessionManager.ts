@@ -143,8 +143,8 @@ export class SessionManager extends EventEmitter {
   }
 
   /**
-   * Start a new conversation with the currently connected agent.
-   * Disconnects current session, reconnects, and signals chat to clear.
+   * Start a new conversation by creating another session instance for
+   * the currently active session's agent.
    */
   async newConversation(): Promise<SessionInfo | null> {
     const activeSession = this.getActiveSession();
@@ -152,9 +152,7 @@ export class SessionManager extends EventEmitter {
       return null;
     }
 
-    const agentName = activeSession.agentName;
-    this.emit('clear-chat');
-    return this.createSessionInstance(agentName);
+    return this.createSessionInstance(activeSession.agentName);
   }
 
   /**

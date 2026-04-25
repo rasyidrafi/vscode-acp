@@ -23,7 +23,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
   private readonly allowedCommands = new Set([
     'acp.connectAgent',
     'acp.addAgent',
-    'acp.browseRegistry',
     'acp.newConversation',
     'acp.attachFile',
     'acp.cancelTurn',

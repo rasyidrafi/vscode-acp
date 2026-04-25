@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SessionManager } from '../core/SessionManager';
-import { getAgentNames } from '../config/AgentConfig';
+import { getAgentConfigs } from '../config/AgentConfig';
 
 /**
  * A flat tree item representing a configured agent.
@@ -8,15 +8,16 @@ import { getAgentNames } from '../config/AgentConfig';
  */
 class AgentTreeItem extends vscode.TreeItem {
   constructor(
-    public readonly agentName: string,
+    public readonly agentId: string,
+    public readonly agentDisplayName: string,
     public readonly connected: boolean,
     public readonly active: boolean,
     public readonly busy: boolean,
   ) {
-    super(agentName, vscode.TreeItemCollapsibleState.None);
+    super(agentDisplayName, vscode.TreeItemCollapsibleState.None);
 
     if (active) {
-      this.label = `${agentName} (active)`;
+      this.label = `${agentDisplayName} (active)`;
       this.contextValue = 'agent-active';
       this.iconPath = new vscode.ThemeIcon(
         busy ? 'sync~spin' : 'record',
@@ -41,13 +42,13 @@ class AgentTreeItem extends vscode.TreeItem {
       this.command = {
         command: 'acp.connectAgent',
         title: 'Switch to Agent',
-        arguments: [agentName],
+        arguments: [agentId],
       };
     }
 
     this.tooltip = connected
-      ? `${agentName} — ${busy ? 'busy' : 'connected'}\nClick to open chat`
-      : `${agentName} — not connected\nUse the plug icon to connect`;
+      ? `${agentDisplayName} — ${busy ? 'busy' : 'connected'}\nRegistry id: ${agentId}\nClick to open chat`
+      : `${agentDisplayName} — not connected\nRegistry id: ${agentId}\nUse the plug icon to connect`;
   }
 }
 
@@ -77,15 +78,18 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeIte
   getChildren(element?: AgentTreeItem): AgentTreeItem[] {
     if (element) { return []; } // flat list, no children
 
-    const agentNames = getAgentNames();
+    const agents = getAgentConfigs();
     const activeAgent = this.sessionManager.getActiveAgentName();
 
-    return agentNames.map(name => new AgentTreeItem(
-      name,
-      this.sessionManager.isAgentConnected(name),
-      activeAgent === name,
-      this.sessionManager.isAgentBusy(name),
-    ));
+    return Object.entries(agents)
+      .map(([id, config]) => new AgentTreeItem(
+        id,
+        config.displayName || id,
+        this.sessionManager.isAgentConnected(id),
+        activeAgent === id,
+        this.sessionManager.isAgentBusy(id),
+      ))
+      .sort((left, right) => String(left.label).localeCompare(String(right.label)));
   }
 
   dispose(): void {

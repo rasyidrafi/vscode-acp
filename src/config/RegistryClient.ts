@@ -1,9 +1,24 @@
 import { log, logError } from '../utils/Logger';
 
 export interface RegistryAgent {
+  id: string;
   name: string;
+  version?: string;
   description?: string;
-  command: string;
+  repository?: string;
+  website?: string;
+  distribution?: {
+    npx?: {
+      package: string;
+      args?: string[];
+      env?: Record<string, string>;
+    };
+    binary?: Record<string, {
+      cmd: string;
+      args?: string[];
+    }>;
+  };
+  command?: string;
   args?: string[];
   homepage?: string;
 }
@@ -81,4 +96,8 @@ export async function fetchRegistry(): Promise<RegistryFetchResult> {
 export function clearRegistryCache(): void {
   cachedRegistry = null;
   cacheTime = 0;
+}
+
+export function getRegistryHomepage(agent: RegistryAgent): string | undefined {
+  return agent.website || agent.repository || agent.homepage;
 }

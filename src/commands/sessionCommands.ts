@@ -4,7 +4,7 @@ import { getOutputChannel, getTrafficChannel, logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
 import type { CommandServices, AgentCommandTarget } from './types';
 import { getAgentName, registerCommand, registerTypedCommand } from './types';
-import { getAgentNames } from '../config/AgentConfig';
+import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
 
 export function registerSessionCommands(services: CommandServices): vscode.Disposable[] {
   return [
@@ -30,20 +30,22 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
     let agentName = getAgentName(target);
 
     if (!agentName) {
-      const agentNames = getAgentNames();
-      if (agentNames.length === 0) {
+      const agentItems = getAgentQuickPickItems();
+      if (agentItems.length === 0) {
         vscode.window.showWarningMessage(
-          'No ACP agents configured. Add agents in Settings > ACP > Agents.',
+          'No ACP agents added. Use Add Agent to select one from the ACP registry.',
         );
         return;
       }
-      agentName = await vscode.window.showQuickPick(agentNames, {
+      const picked = await vscode.window.showQuickPick(agentItems, {
         placeHolder: 'Select an agent to connect',
         title: 'Connect to Agent',
       });
+      agentName = picked?.agentId;
       if (!agentName) { return; }
     }
 
+    const agentDisplayName = getAgentDisplayName(agentName);
     const currentAgent = services.sessionManager.getActiveAgentName();
     if (currentAgent && currentAgent === agentName) {
       void vscode.commands.executeCommand('acp-chat.focus');
@@ -54,7 +56,7 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Connecting to ${agentName}...`,
+          title: `Connecting to ${agentDisplayName}...`,
           cancellable: false,
         },
         async () => {

@@ -276,6 +276,7 @@ export class SessionManager extends EventEmitter {
       agentName,
       agentDisplayName: connInfo.initResponse.agentInfo?.title ||
         connInfo.initResponse.agentInfo?.name ||
+        getAgentConfigs()[agentName]?.displayName ||
         agentName,
       cwd,
       createdAt: new Date().toISOString(),

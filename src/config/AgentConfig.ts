@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { logError } from '../utils/Logger';
+import type { RegistryAgent } from './RegistryClient';
 
 /**
  * Configuration for a single ACP agent.
  */
 export interface AgentConfigEntry {
+  /** Stable agent id from the ACP registry. */
+  id?: string;
   /** Absolute path to a locally installed binary. Takes priority when set. */
   binaryPath?: string;
   /** Binary name to resolve from PATH when binaryPath is not set (e.g., "gemini"). */
@@ -19,13 +22,15 @@ export interface AgentConfigEntry {
   env?: Record<string, string>;
   /** Display name */
   displayName?: string;
+  /** Registry version captured when the agent was added. */
+  registryVersion?: string;
 }
 
 type UnknownRecord = Record<string, unknown>;
 
 /**
  * Read agent configurations from VS Code settings.
- * Returns a map of agent name → config.
+ * Returns a map of registry id to added-agent config.
  */
 export function getAgentConfigs(): Record<string, AgentConfigEntry> {
   const config = vscode.workspace.getConfiguration('acp');
@@ -34,17 +39,25 @@ export function getAgentConfigs(): Record<string, AgentConfigEntry> {
 }
 
 /**
- * Get the list of agent names available.
+ * Get a specific added agent config by registry id.
  */
-export function getAgentNames(): string[] {
-  return Object.keys(getAgentConfigs());
+export function getAgentConfig(agentId: string): AgentConfigEntry | undefined {
+  return getAgentConfigs()[agentId];
 }
 
-/**
- * Get a specific agent config by name.
- */
-export function getAgentConfig(name: string): AgentConfigEntry | undefined {
-  return getAgentConfigs()[name];
+export function getAgentDisplayName(agentId: string): string {
+  return getAgentConfig(agentId)?.displayName || agentId;
+}
+
+export function getAgentQuickPickItems(): Array<vscode.QuickPickItem & { agentId: string }> {
+  return Object.entries(getAgentConfigs())
+    .map(([agentId, config]) => ({
+      label: config.displayName || agentId,
+      description: agentId,
+      detail: config.registryVersion ? `Registry version ${config.registryVersion}` : undefined,
+      agentId,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
 }
 
 export function sanitizeAgentConfigs(value: Record<string, unknown>): Record<string, AgentConfigEntry> {
@@ -68,12 +81,14 @@ function sanitizeAgentConfig(value: unknown): AgentConfigEntry | null {
   }
 
   const command = optionalString(value.command);
+  const id = optionalString(value.id);
   const binaryPath = optionalString(value.binaryPath);
   const binaryName = optionalString(value.binaryName);
   const args = stringArray(value.args);
   const binaryArgs = stringArray(value.binaryArgs);
   const env = stringRecord(value.env);
   const displayName = optionalString(value.displayName);
+  const registryVersion = optionalString(value.registryVersion);
 
   if (!command && !binaryPath && !binaryName) {
     return null;
@@ -81,13 +96,49 @@ function sanitizeAgentConfig(value: unknown): AgentConfigEntry | null {
 
   return {
     command: command ?? '',
+    ...(id ? { id } : {}),
     ...(binaryPath ? { binaryPath } : {}),
     ...(binaryName ? { binaryName } : {}),
     ...(binaryArgs.length > 0 ? { binaryArgs } : {}),
     ...(args.length > 0 ? { args } : {}),
     ...(env ? { env } : {}),
     ...(displayName ? { displayName } : {}),
+    ...(registryVersion ? { registryVersion } : {}),
   };
+}
+
+export function createAgentConfigFromRegistry(agent: RegistryAgent): AgentConfigEntry | null {
+  const npx = agent.distribution?.npx;
+  const command = agent.command || (npx ? 'npx' : undefined);
+  const args = agent.args || (npx ? [npx.package, ...(npx.args || [])] : undefined);
+  const env = npx?.env;
+
+  if (!command) {
+    return null;
+  }
+
+  const config: AgentConfigEntry = {
+    id: agent.id,
+    displayName: agent.name,
+    registryVersion: agent.version,
+    command,
+    ...(args && args.length > 0 ? { args } : {}),
+    ...(env ? { env } : {}),
+  };
+
+  if (agent.id === 'gemini') {
+    config.binaryName = 'gemini';
+    config.binaryArgs = ['--acp'];
+    config.binaryPath = '';
+  }
+
+  if (agent.id === 'github-copilot-cli') {
+    config.binaryName = 'copilot';
+    config.binaryArgs = ['--acp'];
+    config.binaryPath = '';
+  }
+
+  return config;
 }
 
 function optionalString(value: unknown): string | undefined {

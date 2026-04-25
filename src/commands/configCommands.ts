@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
-import { fetchRegistry } from '../config/RegistryClient';
+import { fetchRegistry, getRegistryHomepage } from '../config/RegistryClient';
+import { createAgentConfigFromRegistry } from '../config/AgentConfig';
 import type { AgentConfigEntry } from '../config/AgentConfig';
 import { sendEvent } from '../utils/TelemetryManager';
-import { parseCommandArgs } from '../utils/commandArgs';
 import type { CommandServices, AgentCommandTarget } from './types';
 import { getAgentName, registerCommand, registerTypedCommand } from './types';
 
@@ -11,42 +11,59 @@ export function registerConfigCommands(services: CommandServices): vscode.Dispos
   return [
     registerAddAgentCommand(services),
     registerRemoveAgentCommand(services),
-    registerBrowseRegistryCommand(),
   ];
 }
 
 function registerAddAgentCommand(services: CommandServices): vscode.Disposable {
   return registerCommand('acp.addAgent', async () => {
-    const name = await vscode.window.showInputBox({
-      prompt: 'Agent name',
-      placeHolder: 'my-agent',
-      title: 'Add OACP Agent',
-    });
-    if (!name) { return; }
-
-    const command = await vscode.window.showInputBox({
-      prompt: 'Command to launch the agent',
-      placeHolder: 'npx',
-      title: 'Agent Command',
-    });
-    if (!command) { return; }
-
-    const argsStr = await vscode.window.showInputBox({
-      prompt: 'Arguments (shell-style; quotes supported)',
-      placeHolder: '-y @my-org/agent',
-      title: 'Agent Arguments',
-    });
-    const args = argsStr ? parseCommandArgs(argsStr) : [];
-
     const config = vscode.workspace.getConfiguration('acp');
     const agents = {
       ...(config.get<Record<string, AgentConfigEntry>>('agents') || {}),
     };
-    agents[name] = { command, args };
+
+    const result = await fetchRegistry();
+    if (result.status === 'failure') {
+      vscode.window.showErrorMessage(`Failed to fetch registry: ${result.errorMessage || 'Unknown error'}`);
+      return;
+    }
+
+    const items = result.agents
+      .filter((agent) => !agents[agent.id])
+      .map((agent) => ({ agent, agentConfig: createAgentConfigFromRegistry(agent) }))
+      .filter((item): item is typeof item & { agentConfig: AgentConfigEntry } => item.agentConfig !== null)
+      .map(({ agent, agentConfig }) => ({
+        label: agent.name,
+        description: agent.id,
+        detail: agent.description || getRegistryHomepage(agent) || '',
+        agent,
+        agentConfig,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+
+    if (items.length === 0) {
+      vscode.window.showInformationMessage(
+        result.agents.length === 0 ? 'No agents found in registry.' : 'All supported registry agents are already added.',
+      );
+      return;
+    }
+
+    if (result.status === 'stale') {
+      void vscode.window.showWarningMessage(
+        `Showing cached registry data because refresh failed: ${result.errorMessage || 'Unknown error'}`,
+      );
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select an agent from the ACP registry',
+      title: 'Add OACP Agent',
+    });
+    if (!picked) { return; }
+
+    agents[picked.agent.id] = picked.agentConfig;
     await config.update('agents', agents, vscode.ConfigurationTarget.Global);
     services.sessionTreeProvider.refresh();
-    vscode.window.showInformationMessage(`Agent "${name}" added.`);
-    sendEvent('agent/added');
+    vscode.window.showInformationMessage(`Agent "${picked.agent.name}" added.`);
+    sendEvent('agent/added', { agentId: picked.agent.id });
   });
 }
 
@@ -56,68 +73,41 @@ function registerRemoveAgentCommand(services: CommandServices): vscode.Disposabl
     const agents = {
       ...(config.get<Record<string, AgentConfigEntry>>('agents') || {}),
     };
-    const agentNames = Object.keys(agents);
-    if (agentNames.length === 0) {
-      vscode.window.showInformationMessage('No agents configured.');
+    const agentIds = Object.keys(agents);
+    if (agentIds.length === 0) {
+      vscode.window.showInformationMessage('No agents added.');
       return;
     }
 
-    const name = getAgentName(target) ?? await vscode.window.showQuickPick(agentNames, {
-      placeHolder: 'Select agent to remove',
-      title: 'Remove OACP Agent',
-    });
-    if (!name) { return; }
+    let agentId = getAgentName(target);
+    if (!agentId) {
+      const picked = await vscode.window.showQuickPick(agentIds.map((id) => ({
+        label: agents[id]?.displayName || id,
+        description: id,
+        agentId: id,
+      })), {
+        placeHolder: 'Select agent to remove',
+        title: 'Remove OACP Agent',
+      });
+      agentId = picked?.agentId;
+    }
+    if (!agentId) { return; }
+
+    const displayName = agents[agentId]?.displayName || agentId;
 
     const confirm = await vscode.window.showWarningMessage(
-      `Remove agent "${name}"?`, { modal: true }, 'Remove',
+      `Remove agent "${displayName}"?`, { modal: true }, 'Remove',
     );
     if (confirm !== 'Remove') { return; }
 
-    if (services.sessionManager.isAgentConnected(name)) {
-      await services.sessionManager.disconnectAgent(name);
+    if (services.sessionManager.isAgentConnected(agentId)) {
+      await services.sessionManager.disconnectAgent(agentId);
     }
 
-    delete agents[name];
+    delete agents[agentId];
     await config.update('agents', agents, vscode.ConfigurationTarget.Global);
     services.sessionTreeProvider.refresh();
-    vscode.window.showInformationMessage(`Agent "${name}" removed.`);
-    sendEvent('agent/removed', { agentName: name });
-  });
-}
-
-function registerBrowseRegistryCommand(): vscode.Disposable {
-  return registerCommand('acp.browseRegistry', async () => {
-    sendEvent('registry/browse');
-    try {
-      const result = await fetchRegistry();
-      const items = result.agents.map((agent) => ({
-        label: agent.name,
-        description: agent.command,
-        detail: agent.description || '',
-      }));
-
-      if (items.length === 0) {
-        if (result.status === 'failure') {
-          vscode.window.showErrorMessage(`Failed to fetch registry: ${result.errorMessage || 'Unknown error'}`);
-          return;
-        }
-        vscode.window.showInformationMessage('No agents found in registry.');
-        return;
-      }
-
-      if (result.status === 'stale') {
-        void vscode.window.showWarningMessage(
-          `Showing cached registry data because refresh failed: ${result.errorMessage || 'Unknown error'}`,
-        );
-      }
-
-      await vscode.window.showQuickPick(items, {
-        placeHolder: 'OACP Agent Registry',
-        title: 'Available OACP Agents',
-      });
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      vscode.window.showErrorMessage(`Failed to fetch registry: ${message}`);
-    }
+    vscode.window.showInformationMessage(`Agent "${displayName}" removed.`);
+    sendEvent('agent/removed', { agentId });
   });
 }

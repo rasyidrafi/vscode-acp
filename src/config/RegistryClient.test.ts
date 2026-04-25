@@ -18,14 +18,14 @@ describe('RegistryClient', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        agents: [{ name: 'Codex', command: 'npx' }],
+        agents: [{ id: 'codex-acp', name: 'Codex', command: 'npx' }],
       }),
     })));
 
     const result = await fetchRegistry();
 
     expect(result).toEqual({
-      agents: [{ name: 'Codex', command: 'npx' }],
+      agents: [{ id: 'codex-acp', name: 'Codex', command: 'npx' }],
       source: 'network',
       status: 'fresh',
     });
@@ -40,7 +40,7 @@ describe('RegistryClient', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          agents: [{ name: 'Codex', command: 'npx' }],
+          agents: [{ id: 'codex-acp', name: 'Codex', command: 'npx' }],
         }),
       })
       .mockRejectedValueOnce(new Error('network down')));
@@ -49,7 +49,7 @@ describe('RegistryClient', () => {
     const result = await fetchRegistry();
 
     expect(result).toMatchObject({
-      agents: [{ name: 'Codex', command: 'npx' }],
+      agents: [{ id: 'codex-acp', name: 'Codex', command: 'npx' }],
       source: 'cache',
       status: 'stale',
       errorMessage: 'network down',

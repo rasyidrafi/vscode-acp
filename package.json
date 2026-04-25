@@ -2,7 +2,7 @@
   "name": "oacp",
   "displayName": "OACP",
   "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.4.8",
+  "version": "0.5.3",
   "publisher": "rasyidrafi",
   "author": "rasyidrafi",
   "license": "MIT",
@@ -62,14 +62,19 @@
       },
       {
         "view": "acp-chat",
-        "contents": "Start chatting with an AI coding agent.\n[Connect to Agent](command:acp.connectAgent)\nSelect an agent from the list above to begin."
+        "contents": "Start chatting with an AI coding agent.\n[Create Agent Instance](command:acp.connectAgent)\nSelect a connected session from the Agents list to begin."
       }
     ],
     "commands": [
       {
         "command": "acp.connectAgent",
-        "title": "OACP: Connect to Agent",
+        "title": "OACP: Create Agent Instance",
         "icon": "$(plug)"
+      },
+      {
+        "command": "acp.openSession",
+        "title": "OACP: Open Session",
+        "icon": "$(go-to-file)"
       },
       {
         "command": "acp.newConversation",
@@ -88,6 +93,11 @@
       {
         "command": "acp.disconnectAgent",
         "title": "OACP: Disconnect Agent",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "acp.disconnectSession",
+        "title": "OACP: Disconnect Session",
         "icon": "$(debug-disconnect)"
       },
       {
@@ -163,34 +173,19 @@
           "group": "z_acp@1"
         },
         {
-          "command": "acp.newConversation",
+          "command": "acp.attachFile",
           "when": "view == acp-chat",
           "group": "navigation@1"
         },
         {
-          "command": "acp.attachFile",
-          "when": "view == acp-chat",
-          "group": "navigation@2"
-        },
-        {
           "command": "acp.cancelTurn",
           "when": "view == acp-chat && acp.turnInProgress",
-          "group": "navigation@3"
-        },
-        {
-          "command": "acp.disconnectAgent",
-          "when": "view == acp-chat",
-          "group": "navigation@4"
+          "group": "navigation@2"
         },
         {
           "command": "acp.openSettings",
           "when": "view == acp-chat",
           "group": "z_acp@1"
-        },
-        {
-          "command": "acp.restartAgent",
-          "when": "view == acp-chat",
-          "group": "z_acp@2"
         },
         {
           "command": "acp.showLog",
@@ -206,26 +201,27 @@
       "view/item/context": [
         {
           "command": "acp.connectAgent",
-          "when": "view == acp-sessions && viewItem =~ /^agent-disconnected/",
+          "when": "view == acp-sessions && viewItem =~ /^agent/",
           "group": "inline"
         },
         {
-          "command": "acp.disconnectAgent",
-          "when": "view == acp-sessions && viewItem =~ /^agent-connected/",
+          "command": "acp.openSession",
+          "when": "view == acp-sessions && viewItem =~ /^session/",
           "group": "inline"
+        },
+        {
+          "command": "acp.disconnectSession",
+          "when": "view == acp-sessions && viewItem =~ /^session/",
+          "group": "inline@2"
         },
         {
           "command": "acp.editAgent",
           "when": "view == acp-sessions && viewItem =~ /configurable/",
-          "group": "inline@2"
+          "group": "inline@3"
         },
         {
           "command": "acp.removeAgent",
           "when": "view == acp-sessions && viewItem =~ /^agent/"
-        },
-        {
-          "command": "acp.restartAgent",
-          "when": "view == acp-sessions && viewItem =~ /^agent-connected/"
         }
       ]
     },

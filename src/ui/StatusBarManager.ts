@@ -26,15 +26,16 @@ export class StatusBarManager {
   private updateStatus(): void {
     const activeSession = this.sessionManager.getActiveSession();
     const connectedAgents = this.sessionManager.getConnectedAgentNames();
+    const connectedSessions = this.sessionManager.getSessions();
 
-    if (connectedAgents.length === 0) {
+    if (connectedSessions.length === 0) {
       this.statusBarItem.text = '$(hubot) OACP: Disconnected';
-      this.statusBarItem.tooltip = 'Click to connect to an agent';
+      this.statusBarItem.tooltip = 'Click to create an agent session instance';
       this.statusBarItem.backgroundColor = undefined;
     } else {
       const agentName = activeSession?.agentDisplayName || connectedAgents[0];
       this.statusBarItem.text = `$(hubot) OACP: ${agentName}`;
-      this.statusBarItem.tooltip = `Connected to ${agentName}\n${connectedAgents.length} agent(s) connected`;
+      this.statusBarItem.tooltip = `Active: ${agentName}\n${connectedSessions.length} session(s) connected across ${connectedAgents.length} agent(s)`;
       this.statusBarItem.backgroundColor = undefined;
     }
 

@@ -72,7 +72,7 @@ export function App(): ReactElement {
                 <p>
                   {hasSession
                     ? 'Ask for a change, investigation, or review.'
-                    : 'Connect an AI coding agent to start building and chatting.'}
+                    : 'Create an agent session instance to start building and chatting.'}
                 </p>
               </div>
             </header>
@@ -85,7 +85,7 @@ export function App(): ReactElement {
                   onClick={() => postToExtension({ type: 'executeCommand', command: 'acp.connectAgent' })}
                 >
                   <Plug size={16} style={{ marginRight: '8px' }} />
-                  <span>Connect Agent</span>
+                  <span>Create Instance</span>
                 </button>              </div>
             ) : null}
           </div>

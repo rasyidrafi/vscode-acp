@@ -3,13 +3,15 @@ import * as vscode from 'vscode';
 import { getOutputChannel, getTrafficChannel, logError } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
 import type { CommandServices, AgentCommandTarget } from './types';
-import { getAgentName, registerCommand, registerTypedCommand } from './types';
+import { getAgentName, getSessionId, registerCommand, registerTypedCommand } from './types';
 import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
 
 export function registerSessionCommands(services: CommandServices): vscode.Disposable[] {
   return [
     registerConnectAgentCommand(services),
+    registerOpenSessionCommand(services),
     registerNewConversationCommand(services),
+    registerDisconnectSessionCommand(services),
     registerDisconnectAgentCommand(services),
     registerOpenChatCommand(),
     registerSendPromptCommand(),
@@ -38,36 +40,49 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
         return;
       }
       const picked = await vscode.window.showQuickPick(agentItems, {
-        placeHolder: 'Select an agent to connect',
-        title: 'Connect to Agent',
+        placeHolder: 'Select an agent to create a session instance',
+        title: 'Create Agent Instance',
       });
       agentName = picked?.agentId;
       if (!agentName) { return; }
     }
 
     const agentDisplayName = getAgentDisplayName(agentName);
-    const currentAgent = services.sessionManager.getActiveAgentName();
-    if (currentAgent && currentAgent === agentName) {
-      void vscode.commands.executeCommand('acp-chat.focus');
-      return;
-    }
 
     try {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Connecting to ${agentDisplayName}...`,
+          title: `Creating ${agentDisplayName} session...`,
           cancellable: false,
         },
         async () => {
-          await services.sessionManager.connectToAgent(agentName!);
+          await services.sessionManager.createSessionInstance(agentName!);
         },
       );
+      void vscode.commands.executeCommand('acp-chat.focus');
     } catch (e: unknown) {
       logError('Failed to connect to agent', e);
       const message = e instanceof Error ? e.message : String(e);
-      vscode.window.showErrorMessage(`Failed to connect: ${message}`);
+      vscode.window.showErrorMessage(`Failed to create session: ${message}`);
     }
+  });
+}
+
+function registerOpenSessionCommand(services: CommandServices): vscode.Disposable {
+  return registerTypedCommand<[string | AgentCommandTarget | undefined]>('acp.openSession', async (target) => {
+    const sessionId = getSessionId(target);
+    if (!sessionId) {
+      return;
+    }
+
+    const session = services.sessionManager.openSession(sessionId);
+    if (!session) {
+      vscode.window.showWarningMessage('Session is no longer connected.');
+      return;
+    }
+
+    void vscode.commands.executeCommand('acp-chat.focus');
   });
 }
 
@@ -116,6 +131,22 @@ function registerDisconnectAgentCommand(services: CommandServices): vscode.Dispo
     }
     await services.sessionManager.disconnectAgent(agentName);
     vscode.window.showInformationMessage(`Disconnected from ${agentName}.`);
+  });
+}
+
+function registerDisconnectSessionCommand(services: CommandServices): vscode.Disposable {
+  return registerTypedCommand<[string | AgentCommandTarget | undefined]>('acp.disconnectSession', async (target) => {
+    const sessionId = getSessionId(target) || services.sessionManager.getActiveSessionId();
+    if (!sessionId) {
+      vscode.window.showInformationMessage('No session connected.');
+      return;
+    }
+
+    const session = services.sessionManager.getSession(sessionId);
+    await services.sessionManager.disconnectSession(sessionId);
+    vscode.window.showInformationMessage(
+      session ? `Disconnected ${session.agentDisplayName} session.` : 'Disconnected session.',
+    );
   });
 }
 

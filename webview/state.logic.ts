@@ -655,13 +655,13 @@ function deriveToolCallPresentation(
   const command = extractToolCommand(update);
   const path = extractPrimaryPath(update);
   const outputSummary = summarizeToolOutput(update);
-  const status = update.status;
+  const status = normalizeToolStatus(update.status, 'pending');
   const kind = update.kind;
 
   // 1. First priority: tool kind from protocol
   if (kind === 'execute') {
     let title = 'Ran command';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Running command';
     } else if (status === 'failed') {
       title = 'Failed to run command';
@@ -674,7 +674,7 @@ function deriveToolCallPresentation(
 
   if (kind === 'edit') {
     let title = 'Edited files';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Editing files';
     } else if (status === 'completed') {
       title = 'Edited files';
@@ -689,7 +689,7 @@ function deriveToolCallPresentation(
 
   if (kind === 'read') {
     let title = 'Read file';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Reading file';
     } else if (status === 'completed') {
       title = 'Read file';
@@ -704,7 +704,7 @@ function deriveToolCallPresentation(
 
   if (kind === 'search') {
     let title = 'Searched project';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Searching project';
     } else if (status === 'failed') {
       title = 'Failed to search project';
@@ -719,7 +719,7 @@ function deriveToolCallPresentation(
   // 2. Second priority: fallback to title-based heuristics
   if (command) {
     let title = 'Ran command';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Running command';
     } else if (status === 'failed') {
       title = 'Failed to run command';
@@ -740,7 +740,7 @@ function deriveToolCallPresentation(
     lowerTitle.includes('patch')
   ) {
     let title = 'Edited files';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Editing files';
     } else if (status === 'completed') {
       title = 'Edited files';
@@ -755,7 +755,7 @@ function deriveToolCallPresentation(
 
   if (lowerTitle.includes('read') || lowerTitle.includes('view')) {
     let title = 'Read file';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Reading file';
     } else if (status === 'completed') {
       title = 'Read file';
@@ -774,7 +774,7 @@ function deriveToolCallPresentation(
     lowerTitle.includes('find')
   ) {
     let title = 'Searched project';
-    if (status === 'running' || status === 'in_progress') {
+    if (status === 'running') {
       title = 'Searching project';
     } else if (status === 'failed') {
       title = 'Failed to search project';
@@ -815,7 +815,7 @@ function extractToolCommand(
   }
 
   if (update.kind === 'execute') {
-    return update.title;
+    return firstString(update.title);
   }
 
   return executable ?? undefined;

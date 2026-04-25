@@ -1,63 +1,90 @@
 import * as vscode from 'vscode';
-import { SessionManager } from '../core/SessionManager';
+import { SessionInfo, SessionManager } from '../core/SessionManager';
 import { getAgentConfigs, isConfigurableAgent } from '../config/AgentConfig';
 
 /**
- * A flat tree item representing a configured agent.
- * Shows connected/disconnected state with appropriate icon.
+ * A tree item representing a configured agent.
  */
 class AgentTreeItem extends vscode.TreeItem {
   constructor(
     public readonly agentId: string,
     public readonly agentDisplayName: string,
     public readonly connected: boolean,
-    public readonly active: boolean,
     public readonly busy: boolean,
+    public readonly sessionCount: number,
   ) {
-    super(agentDisplayName, vscode.TreeItemCollapsibleState.None);
+    super(agentDisplayName, vscode.TreeItemCollapsibleState.Expanded);
 
-    if (active) {
-      this.label = `${agentDisplayName} (active)`;
-      this.contextValue = isConfigurableAgent(agentId) ? 'agent-active-configurable' : 'agent-active';
-      this.iconPath = new vscode.ThemeIcon(
-        busy ? 'sync~spin' : 'record',
-        new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
-      );
-      this.description = busy ? 'busy' : 'active';
-    } else if (connected) {
+    if (connected) {
       this.contextValue = isConfigurableAgent(agentId) ? 'agent-connected-configurable' : 'agent-connected';
       this.iconPath = new vscode.ThemeIcon(
-        busy ? 'sync~spin' : 'circle-filled',
-        new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
+        'circle-filled',
+        new vscode.ThemeColor('testing.iconPassed'),
       );
-      this.description = busy ? 'busy' : 'connected';
+      this.description = busy ? `${sessionCount} busy` : `${sessionCount} connected`;
     } else {
       this.contextValue = isConfigurableAgent(agentId) ? 'agent-disconnected-configurable' : 'agent-disconnected';
       this.iconPath = new vscode.ThemeIcon('circle-outline');
       this.description = '';
     }
 
-    if (connected) {
-      // Click to switch/focus
-      this.command = {
-        command: 'acp.connectAgent',
-        title: 'Switch to Agent',
-        arguments: [agentId],
-      };
-    }
-
     this.tooltip = connected
-      ? `${agentDisplayName} — ${busy ? 'busy' : 'connected'}\nRegistry id: ${agentId}\nClick to open chat`
-      : `${agentDisplayName} — not connected\nRegistry id: ${agentId}\nUse the plug icon to connect`;
+      ? `${agentDisplayName} — ${sessionCount} connected session(s)\nRegistry id: ${agentId}\nUse the plus icon to create another instance`
+      : `${agentDisplayName} — no connected sessions\nRegistry id: ${agentId}\nUse the plus icon to create an instance`;
   }
 }
 
 /**
- * TreeDataProvider for the OACP Agents sidebar view.
- * Shows a flat list of configured agents with connected/disconnected state.
+ * A tree item representing one connected session instance.
  */
-export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<AgentTreeItem | undefined | null | void>();
+class SessionTreeItem extends vscode.TreeItem {
+  public readonly sessionId: string;
+
+  constructor(
+    public readonly session: SessionInfo,
+    public readonly active: boolean,
+  ) {
+    const shortId = getShortSessionId(session.sessionId);
+    super(active ? `Session ${shortId} (active)` : `Session ${shortId}`, vscode.TreeItemCollapsibleState.None);
+
+    this.sessionId = session.sessionId;
+    this.id = session.sessionId;
+    this.contextValue = active ? 'session-active' : 'session-connected';
+    this.iconPath = new vscode.ThemeIcon(
+      session.busy ? 'sync~spin' : active ? 'record' : 'vm',
+      new vscode.ThemeColor(session.busy || active ? 'testing.iconPassed' : 'foreground'),
+    );
+    this.description = session.busy ? 'busy' : active ? 'active' : '';
+    this.command = {
+      command: 'acp.openSession',
+      title: 'Open Session',
+      arguments: [session.sessionId],
+    };
+    this.tooltip = [
+      `${session.agentDisplayName} session`,
+      `Session id: ${session.sessionId}`,
+      `Created: ${new Date(session.createdAt).toLocaleString()}`,
+      `CWD: ${session.cwd}`,
+    ].join('\n');
+  }
+}
+
+class EmptyInstancesTreeItem extends vscode.TreeItem {
+  constructor() {
+    super('No instances', vscode.TreeItemCollapsibleState.None);
+    this.contextValue = 'empty-instances';
+    this.description = 'Create an instance to start chatting';
+  }
+}
+
+type TreeItem = AgentTreeItem | SessionTreeItem | EmptyInstancesTreeItem;
+
+/**
+ * TreeDataProvider for the OACP Agents sidebar view.
+ * Shows configured agents with connected session instances as children.
+ */
+export class SessionTreeProvider implements vscode.TreeDataProvider<TreeItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<TreeItem | undefined | null | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   constructor(private readonly sessionManager: SessionManager) {
@@ -71,28 +98,44 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<AgentTreeIte
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: AgentTreeItem): vscode.TreeItem {
+  getTreeItem(element: TreeItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(element?: AgentTreeItem): AgentTreeItem[] {
-    if (element) { return []; } // flat list, no children
+  getChildren(element?: TreeItem): TreeItem[] {
+    if (element instanceof SessionTreeItem || element instanceof EmptyInstancesTreeItem) {
+      return [];
+    }
+
+    if (element instanceof AgentTreeItem) {
+      const activeSessionId = this.sessionManager.getActiveSessionId();
+      const sessions = this.sessionManager
+        .getSessionsForAgent(element.agentId)
+        .map(session => new SessionTreeItem(session, session.sessionId === activeSessionId));
+      return sessions.length > 0 ? sessions : [new EmptyInstancesTreeItem()];
+    }
 
     const agents = getAgentConfigs();
-    const activeAgent = this.sessionManager.getActiveAgentName();
 
     return Object.entries(agents)
-      .map(([id, config]) => new AgentTreeItem(
-        id,
-        config.displayName || id,
-        this.sessionManager.isAgentConnected(id),
-        activeAgent === id,
-        this.sessionManager.isAgentBusy(id),
-      ))
+      .map(([id, config]) => {
+        const sessions = this.sessionManager.getSessionsForAgent(id);
+        return new AgentTreeItem(
+          id,
+          config.displayName || id,
+          sessions.length > 0,
+          sessions.some(session => session.busy),
+          sessions.length,
+        );
+      })
       .sort((left, right) => String(left.label).localeCompare(String(right.label)));
   }
 
   dispose(): void {
     this._onDidChangeTreeData.dispose();
   }
+}
+
+function getShortSessionId(sessionId: string): string {
+  return sessionId.length <= 8 ? sessionId : sessionId.slice(0, 8);
 }

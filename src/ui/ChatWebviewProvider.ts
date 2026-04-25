@@ -26,8 +26,6 @@ export class ChatWebviewProvider implements vscode.WebviewViewProvider {
     'acp.newConversation',
     'acp.attachFile',
     'acp.cancelTurn',
-    'acp.disconnectAgent',
-    'acp.restartAgent',
     'acp.showLog',
     'acp.showTraffic',
     'acp.setMode',

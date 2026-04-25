@@ -11,6 +11,7 @@ import {
   parseMaybeJson,
   stringifyUnknown,
   type DiffPart,
+  type ToolRendererKind,
 } from './toolRenderUtils';
 
 interface ToolCallContentProps {

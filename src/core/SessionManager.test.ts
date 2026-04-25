@@ -71,19 +71,50 @@ function createSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
 function seedSession(manager: SessionManager, session: SessionInfo): void {
   const internals = manager as unknown as {
     sessions: Map<string, SessionInfo>;
-    agentSessions: Map<string, string>;
+    agentSessions: Map<string, Set<string>>;
     agentIdSessions: Map<string, string>;
     activeSessionId: string | null;
   };
 
   internals.sessions.set(session.sessionId, session);
-  internals.agentSessions.set(session.agentName, session.sessionId);
+  const sessionIds = internals.agentSessions.get(session.agentName) ?? new Set<string>();
+  sessionIds.add(session.sessionId);
+  internals.agentSessions.set(session.agentName, sessionIds);
   internals.agentIdSessions.set(session.agentId, session.sessionId);
   internals.activeSessionId = session.sessionId;
 }
 
 describe('SessionManager', () => {
-  it('reuses an existing live session for the same agent', async () => {
+  it('creates a new live session for the same agent', async () => {
+    const agentManager = new FakeAgentManager();
+    const connectionManager = new FakeConnectionManager();
+    const manager = new SessionManager(
+      agentManager as unknown as never,
+      connectionManager as unknown as never,
+      new SessionUpdateHandler(),
+    );
+
+    const session = createSession();
+    seedSession(manager, session);
+    const changed = vi.fn();
+    manager.on('active-session-changed', changed);
+    const child = { process: {} };
+    agentManager.spawnAgent.mockReturnValueOnce({ id: 'agent-2' });
+    agentManager.getAgent.mockReturnValueOnce(child);
+    connectionManager.connect.mockResolvedValueOnce({
+      connection: { newSession: vi.fn().mockResolvedValue({ sessionId: 'session-2' }) },
+      initResponse: { agentInfo: { name: 'Codex' } },
+    });
+
+    const result = await manager.connectToAgent('Codex');
+
+    expect(result.sessionId).toBe('session-2');
+    expect(agentManager.spawnAgent).toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledWith('session-2');
+    expect(manager.getSessionsForAgent('Codex').map(item => item.sessionId)).toEqual(['session-1', 'session-2']);
+  });
+
+  it('opens an existing session without spawning a process', () => {
     const agentManager = new FakeAgentManager();
     const connectionManager = new FakeConnectionManager();
     const manager = new SessionManager(
@@ -97,7 +128,7 @@ describe('SessionManager', () => {
     const changed = vi.fn();
     manager.on('active-session-changed', changed);
 
-    const result = await manager.connectToAgent('Codex');
+    const result = manager.openSession('session-1');
 
     expect(result).toBe(session);
     expect(agentManager.spawnAgent).not.toHaveBeenCalled();
@@ -155,13 +186,13 @@ describe('SessionManager', () => {
     manager.on('agent-disconnected', disconnected);
     manager.on('active-session-changed', activeChanged);
 
-    await manager.disconnectAgent('Codex');
+    await manager.disconnectSession('session-1');
     agentManager.emit('agent-closed', { agentId: 'agent-1', code: 0 });
 
     expect(agentManager.killAgent).toHaveBeenCalledWith('agent-1');
     expect(connectionManager.disposeConnection).toHaveBeenCalled();
     expect(disconnected).toHaveBeenCalledTimes(1);
-    expect(disconnected).toHaveBeenCalledWith('Codex');
+    expect(disconnected).toHaveBeenCalledWith('Codex', 'session-1');
     expect(activeChanged).toHaveBeenCalledTimes(1);
     expect(activeChanged).toHaveBeenCalledWith(null);
     expect(manager.getActiveSessionId()).toBeNull();
@@ -194,7 +225,7 @@ describe('SessionManager', () => {
 
     expect(connectionManager.disposeConnection).toHaveBeenCalledWith('agent-2');
     expect(disconnected).toHaveBeenCalledTimes(1);
-    expect(disconnected).toHaveBeenCalledWith('Claude Code');
+    expect(disconnected).toHaveBeenCalledWith('Claude Code', 'session-2');
     expect(activeChanged).toHaveBeenCalledWith(null);
     expect(closed).toHaveBeenCalledWith('agent-2', 137);
     expect(manager.getSession('session-2')).toBeUndefined();

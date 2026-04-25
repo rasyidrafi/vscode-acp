@@ -29,16 +29,18 @@ export interface SessionInfo {
 /**
  * Manages the lifecycle of ACP agent connections.
  *
- * The "session" concept is hidden from the user — they just see agents.
- * Internally we still use ACP sessions for protocol compliance, but the
- * user-facing model is: pick an agent → chat.
+ * Manages visible ACP session instances.
+ *
+ * A session instance is intentionally modeled as one spawned agent process,
+ * one ACP connection, and one ACP session. That keeps each visible instance
+ * independently openable and disconnectable.
  */
 export class SessionManager extends EventEmitter {
   private sessions: Map<string, SessionInfo> = new Map();
   private activeSessionId: string | null = null;
 
-  /** Maps agentName → activeSessionId for the one-session-per-agent model. */
-  private agentSessions: Map<string, string> = new Map();
+  /** Maps agentName → live session ids for that configured agent. */
+  private agentSessions: Map<string, Set<string>> = new Map();
   /** Maps agentId → activeSessionId so process lifecycle can clean up deterministically. */
   private agentIdSessions: Map<string, string> = new Map();
 
@@ -79,18 +81,16 @@ export class SessionManager extends EventEmitter {
   }
 
   /**
-   * Connect to an agent and start chatting.
-   * Internally creates a session via ACP protocol.
+   * Backward-compatible alias for creating a new session instance.
    */
   async connectToAgent(agentName: string): Promise<SessionInfo> {
-    // If we already have a live session with this agent, reuse it
-    const existingSessionId = this.agentSessions.get(agentName);
-    if (existingSessionId && this.sessions.has(existingSessionId)) {
-      this.activeSessionId = existingSessionId;
-      this.emit('active-session-changed', existingSessionId);
-      return this.sessions.get(existingSessionId)!;
-    }
+    return this.createSessionInstance(agentName);
+  }
 
+  /**
+   * Create a new connected session instance for an agent and open it in chat.
+   */
+  async createSessionInstance(agentName: string): Promise<SessionInfo> {
     const configs = getAgentConfigs();
     const config = configs[agentName];
     if (!config) {
@@ -126,11 +126,11 @@ export class SessionManager extends EventEmitter {
       const sessionInfo = await this.createAcpSession(agentName, agentId, connInfo, workspaceCwd);
 
       this.sessions.set(sessionInfo.sessionId, sessionInfo);
-      this.agentSessions.set(agentName, sessionInfo.sessionId);
+      this.addAgentSession(agentName, sessionInfo.sessionId);
       this.agentIdSessions.set(agentId, sessionInfo.sessionId);
       this.activeSessionId = sessionInfo.sessionId;
 
-      this.emit('agent-connected', agentName);
+      this.emit('agent-connected', agentName, sessionInfo.sessionId);
       this.emit('active-session-changed', sessionInfo.sessionId);
 
       log(`Connected to agent ${agentName}, session ${sessionInfo.sessionId}`);
@@ -153,26 +153,48 @@ export class SessionManager extends EventEmitter {
     }
 
     const agentName = activeSession.agentName;
-    await this.disconnectAgent(agentName);
     this.emit('clear-chat');
-    return this.connectToAgent(agentName);
+    return this.createSessionInstance(agentName);
   }
 
   /**
-   * Disconnect from an agent: kill process and clean up.
+   * Disconnect all live session instances for an agent.
    */
   async disconnectAgent(agentName: string): Promise<void> {
-    const sessionId = this.agentSessions.get(agentName);
-    if (!sessionId) { return; }
+    const sessionIds = this.agentSessions.get(agentName);
+    if (!sessionIds) { return; }
 
+    for (const sessionId of Array.from(sessionIds)) {
+      await this.disconnectSession(sessionId);
+    }
+  }
+
+  /**
+   * Disconnect a specific session instance.
+   */
+  async disconnectSession(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) { return; }
 
-    log(`Disconnecting agent ${agentName}`);
-    sendEvent('agent/disconnect', { agentName });
+    log(`Disconnecting session ${sessionId} for agent ${session.agentName}`);
+    sendEvent('agent/disconnect', { agentName: session.agentName });
 
     this.cleanupSessionByAgentId(session.agentId);
     this.agentManager.killAgent(session.agentId);
+  }
+
+  /**
+   * Open an existing connected session instance in chat.
+   */
+  openSession(sessionId: string): SessionInfo | undefined {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return undefined;
+    }
+
+    this.activeSessionId = sessionId;
+    this.emit('active-session-changed', sessionId);
+    return session;
   }
 
   /**
@@ -407,19 +429,35 @@ export class SessionManager extends EventEmitter {
 
   /** Check if a specific agent is currently connected. */
   isAgentConnected(agentName: string): boolean {
-    return this.agentSessions.has(agentName);
+    return (this.agentSessions.get(agentName)?.size ?? 0) > 0;
   }
 
   /** Check if a specific agent is currently busy. */
   isAgentBusy(agentName: string): boolean {
-    const sessionId = this.agentSessions.get(agentName);
-    if (!sessionId) { return false; }
-    return this.sessions.get(sessionId)?.busy ?? false;
+    return this.getSessionsForAgent(agentName).some(session => session.busy);
   }
 
   /** Get all connected agent names. */
   getConnectedAgentNames(): string[] {
     return Array.from(this.agentSessions.keys());
+  }
+
+  /** Get all live session instances. */
+  getSessions(): SessionInfo[] {
+    return Array.from(this.sessions.values());
+  }
+
+  /** Get live session instances for an agent. */
+  getSessionsForAgent(agentName: string): SessionInfo[] {
+    const sessionIds = this.agentSessions.get(agentName);
+    if (!sessionIds) {
+      return [];
+    }
+
+    return Array.from(sessionIds)
+      .map(sessionId => this.sessions.get(sessionId))
+      .filter((session): session is SessionInfo => Boolean(session))
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
   }
 
   getConnectionForSession(sessionId: string): ConnectionInfo | undefined {
@@ -436,6 +474,12 @@ export class SessionManager extends EventEmitter {
     return this.sessions.get(sessionId);
   }
 
+  private addAgentSession(agentName: string, sessionId: string): void {
+    const sessionIds = this.agentSessions.get(agentName) ?? new Set<string>();
+    sessionIds.add(sessionId);
+    this.agentSessions.set(agentName, sessionIds);
+  }
+
   private cleanupSessionByAgentId(agentId: string): void {
     const sessionId = this.agentIdSessions.get(agentId);
     if (!sessionId) {
@@ -447,7 +491,11 @@ export class SessionManager extends EventEmitter {
     this.sessions.delete(sessionId);
 
     if (session) {
-      this.agentSessions.delete(session.agentName);
+      const sessionIds = this.agentSessions.get(session.agentName);
+      sessionIds?.delete(sessionId);
+      if (sessionIds && sessionIds.size === 0) {
+        this.agentSessions.delete(session.agentName);
+      }
     }
 
     const wasActive = this.activeSessionId === sessionId;
@@ -458,7 +506,7 @@ export class SessionManager extends EventEmitter {
     this.connectionManager.disposeConnection(agentId);
 
     if (session) {
-      this.emit('agent-disconnected', session.agentName);
+      this.emit('agent-disconnected', session.agentName, sessionId);
     }
     if (wasActive) {
       this.emit('active-session-changed', null);

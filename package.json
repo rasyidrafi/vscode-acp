@@ -2,7 +2,7 @@
   "name": "oacp",
   "displayName": "OACP",
   "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.5.6",
+  "version": "0.5.8",
   "publisher": "rasyidrafi",
   "author": "rasyidrafi",
   "license": "MIT",
@@ -98,6 +98,11 @@
       {
         "command": "acp.disconnectSession",
         "title": "OACP: Disconnect Session",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "acp.disconnectActiveSession",
+        "title": "OACP: Disconnect Active Session",
         "icon": "$(debug-disconnect)"
       },
       {

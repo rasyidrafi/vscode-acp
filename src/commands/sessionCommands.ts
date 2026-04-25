@@ -5,6 +5,7 @@ import { sendEvent } from '../utils/TelemetryManager';
 import type { CommandServices, AgentCommandTarget } from './types';
 import { getAgentName, getSessionId, registerCommand, registerTypedCommand } from './types';
 import { getAgentDisplayName, getAgentQuickPickItems } from '../config/AgentConfig';
+import { getShortSessionId } from '../shared/sessionDisplay';
 
 function getConnectedAgentQuickPickItems(agentNames: string[]): Array<vscode.QuickPickItem & { agentName: string }> {
   return agentNames
@@ -16,12 +17,27 @@ function getConnectedAgentQuickPickItems(agentNames: string[]): Array<vscode.Qui
     .sort((left, right) => left.label.localeCompare(right.label));
 }
 
+function getSessionQuickPickItems(
+  services: CommandServices,
+): Array<vscode.QuickPickItem & { sessionId: string }> {
+  const activeSessionId = services.sessionManager.getActiveSessionId();
+  return services.sessionManager
+    .getSessions()
+    .map((session) => ({
+      label: `${session.agentDisplayName} session ${getShortSessionId(session.sessionId)}`,
+      description: session.sessionId === activeSessionId ? `${session.sessionId} (active)` : session.sessionId,
+      sessionId: session.sessionId,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
 export function registerSessionCommands(services: CommandServices): vscode.Disposable[] {
   return [
     registerConnectAgentCommand(services),
     registerOpenSessionCommand(services),
     registerNewConversationCommand(services),
     registerDisconnectSessionCommand(services),
+    registerDisconnectActiveSessionCommand(services),
     registerDisconnectAgentCommand(services),
     registerOpenChatCommand(),
     registerSendPromptCommand(),
@@ -165,17 +181,54 @@ function registerDisconnectAgentCommand(services: CommandServices): vscode.Dispo
 
 function registerDisconnectSessionCommand(services: CommandServices): vscode.Disposable {
   return registerTypedCommand<[string | AgentCommandTarget | undefined]>('acp.disconnectSession', async (target) => {
-    const sessionId = getSessionId(target) || services.sessionManager.getActiveSessionId();
+    let sessionId = getSessionId(target);
     if (!sessionId) {
-      vscode.window.showInformationMessage('No session connected.');
+      const sessionItems = getSessionQuickPickItems(services);
+      if (sessionItems.length === 0) {
+        vscode.window.showInformationMessage('No session instance connected.');
+        return;
+      }
+
+      const picked = await vscode.window.showQuickPick(sessionItems, {
+        placeHolder: 'Select a session instance to disconnect',
+        title: 'Disconnect Session Instance',
+      });
+      sessionId = picked?.sessionId;
+    }
+
+    if (!sessionId) {
       return;
     }
 
     const session = services.sessionManager.getSession(sessionId);
+    if (!session) {
+      vscode.window.showInformationMessage('Session is no longer connected.');
+      return;
+    }
+
     await services.sessionManager.disconnectSession(sessionId);
     vscode.window.showInformationMessage(
-      session ? `Disconnected ${session.agentDisplayName} session.` : 'Disconnected session.',
+      `Disconnected ${session.agentDisplayName} session.`,
     );
+  });
+}
+
+function registerDisconnectActiveSessionCommand(services: CommandServices): vscode.Disposable {
+  return registerCommand('acp.disconnectActiveSession', async () => {
+    const activeSessionId = services.sessionManager.getActiveSessionId();
+    if (!activeSessionId) {
+      vscode.window.showInformationMessage('No active session instance. Create or open a session first.');
+      return;
+    }
+
+    const session = services.sessionManager.getSession(activeSessionId);
+    if (!session) {
+      vscode.window.showInformationMessage('Session is no longer connected.');
+      return;
+    }
+
+    await services.sessionManager.disconnectSession(activeSessionId);
+    vscode.window.showInformationMessage(`Disconnected ${session.agentDisplayName} session.`);
   });
 }
 

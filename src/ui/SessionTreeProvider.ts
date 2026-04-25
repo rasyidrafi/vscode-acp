@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SessionInfo, SessionManager } from '../core/SessionManager';
 import { getAgentConfigs, isConfigurableAgent } from '../config/AgentConfig';
+import { getShortSessionId } from '../shared/sessionDisplay';
 
 /**
  * A tree item representing a configured agent.
@@ -134,8 +135,4 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<TreeItem> {
   dispose(): void {
     this._onDidChangeTreeData.dispose();
   }
-}
-
-function getShortSessionId(sessionId: string): string {
-  return sessionId.length <= 8 ? sessionId : sessionId.slice(0, 8);
 }

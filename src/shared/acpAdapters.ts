@@ -13,6 +13,7 @@ import type {
   ToolCall,
   ToolCallUpdate,
 } from '@agentclientprotocol/sdk/dist/schema';
+import { isRecord } from './typeGuards';
 
 export type SupportedSessionUpdate =
   | (ContentChunk & { sessionUpdate: 'agent_message_chunk' })
@@ -125,10 +126,6 @@ function isSessionModelState(value: unknown): value is SessionModelState {
   return isRecord(value)
     && typeof value.currentModelId === 'string'
     && Array.isArray(value.availableModels);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 export type { SessionUpdate };

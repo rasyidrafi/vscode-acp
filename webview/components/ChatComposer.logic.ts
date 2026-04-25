@@ -1,4 +1,5 @@
 import type { AvailableCommand, SessionModeState } from '@agentclientprotocol/sdk';
+import { isRecord } from '../lib/typeGuards';
 
 interface LocalCommandMeta {
   kind: 'set-mode';
@@ -103,10 +104,6 @@ function composerPlaceholder(
     return 'Ask the agent or type / for commands';
   }
   return 'Ask the agent';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function localModeCommand(name: string, description: string, modeId: string): AvailableCommand {

@@ -5,6 +5,7 @@ import type {
   SessionModelState,
 } from '@agentclientprotocol/sdk';
 import type { BridgeSessionUpdate } from './acpAdapters';
+import { isRecord } from './typeGuards';
 
 export interface BridgeSessionState {
   sessionId: string;
@@ -77,8 +78,4 @@ export function isWebviewToExtensionMessage(value: unknown): value is WebviewToE
     default:
       return false;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { logError } from '../utils/Logger';
 import type { RegistryAgent } from './RegistryClient';
 import { getAgentSettings } from './Settings';
+import { isRecord } from '../shared/typeGuards';
 
 /**
  * Configuration for a single ACP agent.
@@ -26,8 +27,6 @@ export interface AgentConfigEntry {
   /** Registry version captured when the agent was added. */
   registryVersion?: string;
 }
-
-type UnknownRecord = Record<string, unknown>;
 
 const CONFIGURABLE_AGENT_IDS = new Set([
   'gemini',
@@ -180,8 +179,4 @@ function stringRecord(value: unknown): Record<string, string> | undefined {
   ));
 
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-}
-
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === 'object' && value !== null;
 }

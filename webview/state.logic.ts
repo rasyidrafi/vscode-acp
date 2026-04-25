@@ -11,6 +11,7 @@ import type {
   ToolCallStatus,
 } from '../src/shared/chatModel';
 import { createInitialState, type WebviewState } from './state';
+import { isRecord } from './lib/typeGuards';
 
 export type WebviewAction =
   | { type: 'extensionMessage'; message: ExtensionToWebviewMessage }
@@ -977,10 +978,4 @@ function emptyTimelineState(): Pick<
     nextOrder: createInitialState().nextOrder,
     nextItemId: createInitialState().nextItemId,
   };
-}
-
-type StringRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is StringRecord {
-  return typeof value === 'object' && value !== null;
 }

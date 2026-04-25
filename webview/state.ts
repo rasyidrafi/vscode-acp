@@ -2,6 +2,7 @@ import type { AvailableCommand, SessionModeState, SessionModelState } from '@age
 
 import type { AttachedFile, BridgeSessionState } from '../src/shared/bridge';
 import type { ActivePlan, ActivityItem, ConversationMessage } from '../src/shared/chatModel';
+import { isRecord } from './lib/typeGuards';
 
 export interface SessionHistory {
   messages: ConversationMessage[];
@@ -119,8 +120,4 @@ export function isPersistedWebviewState(value: unknown): value is PersistedWebvi
     typeof value.nextItemId === 'number' &&
     (value.sessionsHistory === undefined || isRecord(value.sessionsHistory))
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

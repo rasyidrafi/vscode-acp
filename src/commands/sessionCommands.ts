@@ -21,7 +21,6 @@ export function registerSessionCommands(services: CommandServices): vscode.Dispo
     registerShowTrafficCommand(),
     registerSetModeCommand(services),
     registerSetModelCommand(services),
-    registerRefreshAgentsCommand(services),
     registerOpenSettingsCommand(),
     registerAttachFileCommand(services),
   ];
@@ -124,13 +123,46 @@ function registerNewConversationCommand(services: CommandServices): vscode.Dispo
 
 function registerDisconnectAgentCommand(services: CommandServices): vscode.Disposable {
   return registerTypedCommand<[AgentCommandTarget | undefined]>('acp.disconnectAgent', async (target) => {
-    const agentName = getAgentName(target) || services.sessionManager.getActiveAgentName();
+    let agentName = getAgentName(target);
+
     if (!agentName) {
-      vscode.window.showInformationMessage('No agent connected.');
+      const connectedAgentNames = services.sessionManager.getConnectedAgentNames();
+      if (connectedAgentNames.length === 0) {
+        vscode.window.showInformationMessage('No agent connected.');
+        return;
+      }
+
+      if (connectedAgentNames.length === 1) {
+        [agentName] = connectedAgentNames;
+      } else {
+        const picked = await vscode.window.showQuickPick(
+          connectedAgentNames
+            .map((name) => ({
+              label: getAgentDisplayName(name),
+              description: name,
+              agentName: name,
+            }))
+            .sort((left, right) => left.label.localeCompare(right.label)),
+          {
+            placeHolder: 'Select connected agent to disconnect',
+            title: 'Disconnect OACP Agent',
+          },
+        );
+        agentName = picked?.agentName;
+      }
+    }
+
+    if (!agentName) {
       return;
     }
+
+    if (!services.sessionManager.isAgentConnected(agentName)) {
+      vscode.window.showInformationMessage(`Agent "${getAgentDisplayName(agentName)}" is not connected.`);
+      return;
+    }
+
     await services.sessionManager.disconnectAgent(agentName);
-    vscode.window.showInformationMessage(`Disconnected from ${agentName}.`);
+    vscode.window.showInformationMessage(`Disconnected from ${getAgentDisplayName(agentName)}.`);
   });
 }
 
@@ -255,12 +287,6 @@ function registerSetModelCommand(services: CommandServices): vscode.Disposable {
       const message = e instanceof Error ? e.message : String(e);
       vscode.window.showErrorMessage(`Failed to set model: ${message}`);
     }
-  });
-}
-
-function registerRefreshAgentsCommand(services: CommandServices): vscode.Disposable {
-  return registerCommand('acp.refreshAgents', () => {
-    services.sessionTreeProvider.refresh();
   });
 }
 

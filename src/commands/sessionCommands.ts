@@ -195,6 +195,7 @@ function registerCancelTurnCommand(services: CommandServices): vscode.Disposable
   return registerCommand('acp.cancelTurn', async () => {
     const activeId = services.sessionManager.getActiveSessionId();
     if (!activeId) {
+      vscode.window.showInformationMessage('No active session instance. Create or open a session first.');
       return;
     }
     try {
@@ -309,6 +310,12 @@ function registerOpenSettingsCommand(): vscode.Disposable {
 
 function registerAttachFileCommand(services: CommandServices): vscode.Disposable {
   return registerCommand('acp.attachFile', async () => {
+    const activeSessionId = services.sessionManager.getActiveSessionId();
+    if (!activeSessionId) {
+      vscode.window.showInformationMessage('No active session instance. Create or open a session first.');
+      return;
+    }
+
     const uris = await vscode.window.showOpenDialog({
       canSelectMany: false,
       openLabel: 'Attach',

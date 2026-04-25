@@ -29,6 +29,7 @@ interface ChatComposerProps {
   availableCommands: AvailableCommand[];
   modes: SessionModeState | null;
   attachedFiles: AttachedFile[];
+  submitRequestNonce?: number;
   onSubmit: (text: string) => void;
   onCancel: () => void;
   onAttachFile: () => void;
@@ -43,6 +44,7 @@ export function ChatComposer({
   availableCommands,
   modes,
   attachedFiles,
+  submitRequestNonce = 0,
   onSubmit,
   onCancel,
   onAttachFile,
@@ -54,6 +56,7 @@ export function ChatComposer({
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const [commandHint, setCommandHint] = useState<string | null>(null);
   const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
+  const lastSubmitRequestNonce = useRef(submitRequestNonce);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const builtInCommands = useMemo(() => createBuiltInCommands(modes), [modes]);
   const commandCatalog = useMemo(() => (
@@ -124,6 +127,14 @@ export function ChatComposer({
 
     submitPrompt(nextPrompt);
   }, [onModeChange, submitPrompt]);
+
+  useEffect(() => {
+    if (submitRequestNonce === lastSubmitRequestNonce.current) {
+      return;
+    }
+    lastSubmitRequestNonce.current = submitRequestNonce;
+    submitPrompt();
+  }, [submitPrompt, submitRequestNonce]);
 
   useEffect(() => {
     if (!onCommandMenuChange) {

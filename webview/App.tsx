@@ -20,6 +20,7 @@ export function App(): ReactElement {
     () => createInitialState(getPersistedState()),
   );
   const [composerMenuState, setComposerMenuState] = useState<ComposerMenuState | null>(null);
+  const [submitRequestNonce, setSubmitRequestNonce] = useState(0);
 
   const submitPrompt = useCallback((text: string): void => {
     const attachmentPrefix = state.attachedFiles.length > 0
@@ -36,10 +37,7 @@ export function App(): ReactElement {
   useEffect(() => {
     const onMessage = (event: MessageEvent<ExtensionToWebviewMessage>) => {
       if (event.data.type === 'requestSendPrompt') {
-        const input = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input="true"]');
-        if (input && !input.disabled) {
-          submitPrompt(input.value);
-        }
+        setSubmitRequestNonce((value) => value + 1);
         return;
       }
       dispatch({ type: 'extensionMessage', message: event.data });
@@ -152,6 +150,7 @@ export function App(): ReactElement {
             availableCommands={state.availableCommands}
             modes={state.modes}
             attachedFiles={state.attachedFiles}
+            submitRequestNonce={submitRequestNonce}
             onSubmit={submitPrompt}
             onCancel={cancelTurn}
             onAttachFile={() => postToExtension({ type: 'executeCommand', command: 'acp.attachFile' })}

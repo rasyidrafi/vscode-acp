@@ -50,8 +50,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Notify chat webview when active session changes
   sessionManager.on('active-session-changed', () => {
+    void vscode.commands.executeCommand(
+      'setContext',
+      'acp.hasActiveSession',
+      Boolean(sessionManager.getActiveSessionId()),
+    );
     chatWebviewProvider.notifyActiveSessionChanged();
   });
+
+  void vscode.commands.executeCommand(
+    'setContext',
+    'acp.hasActiveSession',
+    Boolean(sessionManager.getActiveSessionId()),
+  );
 
   // Forward mode/model changes to webview
   sessionManager.on('mode-changed', (_sessionId: string, _modeId: string) => {

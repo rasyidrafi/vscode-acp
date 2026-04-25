@@ -43,7 +43,7 @@ function registerConnectAgentCommand(services: CommandServices): vscode.Disposab
     if (!agentName) {
       const agentItems = getAgentQuickPickItems();
       if (agentItems.length === 0) {
-        vscode.window.showWarningMessage(
+        vscode.window.showInformationMessage(
           'No ACP agents added. Use Add Agent to select one from the ACP registry.',
         );
         return;

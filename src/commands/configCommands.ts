@@ -85,7 +85,14 @@ function registerEditAgentCommand(services: CommandServices): vscode.Disposable 
           label: agent.displayName || id,
           description: id,
           agentId: id,
-        }));
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label));
+
+      if (configurableAgents.length === 0) {
+        vscode.window.showInformationMessage('No editable agents available.');
+        return;
+      }
+
       const picked = await vscode.window.showQuickPick(configurableAgents, {
         placeHolder: 'Select agent to edit',
         title: 'Edit OACP Agent Configuration',

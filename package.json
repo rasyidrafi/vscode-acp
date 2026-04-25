@@ -2,7 +2,7 @@
   "name": "oacp",
   "displayName": "OACP",
   "description": "Open ACP client VS Code extension — connect to GitHub Copilot, Claude Code, Gemini CLI, Qwen Code, Codex CLI, OpenCode, OpenClaw, Hermes Agent, and any ACP-compatible AI coding agent",
-  "version": "0.4.4",
+  "version": "0.4.8",
   "publisher": "rasyidrafi",
   "author": "rasyidrafi",
   "license": "MIT",
@@ -58,7 +58,7 @@
     "viewsWelcome": [
       {
         "view": "acp-sessions",
-        "contents": "No agents added.\n[Add Agent](command:acp.addAgent)\nAdd agents from the ACP registry."
+        "contents": "No agents added. [Add Agent](command:acp.addAgent) from the ACP registry."
       },
       {
         "view": "acp-chat",
@@ -98,6 +98,11 @@
         "command": "acp.addAgent",
         "title": "OACP: Add Agent",
         "icon": "$(add)"
+      },
+      {
+        "command": "acp.editAgent",
+        "title": "OACP: Edit Agent Configuration",
+        "icon": "$(gear)"
       },
       {
         "command": "acp.removeAgent",
@@ -201,13 +206,18 @@
       "view/item/context": [
         {
           "command": "acp.connectAgent",
-          "when": "view == acp-sessions && viewItem == agent-disconnected",
+          "when": "view == acp-sessions && viewItem =~ /^agent-disconnected/",
           "group": "inline"
         },
         {
           "command": "acp.disconnectAgent",
-          "when": "view == acp-sessions && viewItem == agent-connected",
+          "when": "view == acp-sessions && viewItem =~ /^agent-connected/",
           "group": "inline"
+        },
+        {
+          "command": "acp.editAgent",
+          "when": "view == acp-sessions && viewItem =~ /configurable/",
+          "group": "inline@2"
         },
         {
           "command": "acp.removeAgent",
@@ -215,7 +225,7 @@
         },
         {
           "command": "acp.restartAgent",
-          "when": "view == acp-sessions && viewItem == agent-connected"
+          "when": "view == acp-sessions && viewItem =~ /^agent-connected/"
         }
       ]
     },
@@ -234,12 +244,12 @@
     "configuration": {
       "title": "OACP",
       "properties": {
-        "acp.agents": {
+        "oacp.agents": {
           "type": "object",
           "description": "Added ACP agents keyed by registry id. Add agents from the ACP registry; Gemini and GitHub Copilot entries may optionally override binaryPath while keeping registry fallback launch settings.",
           "default": {}
         },
-        "acp.autoApprovePermissions": {
+        "oacp.autoApprovePermissions": {
           "type": "string",
           "enum": [
             "ask",
@@ -248,17 +258,17 @@
           "default": "ask",
           "description": "Automatically approve agent permission requests. 'ask' always prompts, 'allowAll' approves everything."
         },
-        "acp.defaultWorkingDirectory": {
+        "oacp.defaultWorkingDirectory": {
           "type": "string",
           "default": "",
           "description": "Default working directory for agent sessions. Leave empty to use the current workspace folder."
         },
-        "acp.autoOpenWrittenFilesInEditor": {
+        "oacp.autoOpenWrittenFilesInEditor": {
           "type": "boolean",
           "default": false,
           "description": "Automatically open files in the editor after an ACP file write completes."
         },
-        "acp.logTraffic": {
+        "oacp.logTraffic": {
           "type": "boolean",
           "default": true,
           "description": "Log all ACP protocol traffic to the output channel."

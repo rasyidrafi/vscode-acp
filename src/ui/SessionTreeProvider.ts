@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SessionManager } from '../core/SessionManager';
-import { getAgentConfigs } from '../config/AgentConfig';
+import { getAgentConfigs, isConfigurableAgent } from '../config/AgentConfig';
 
 /**
  * A flat tree item representing a configured agent.
@@ -18,21 +18,21 @@ class AgentTreeItem extends vscode.TreeItem {
 
     if (active) {
       this.label = `${agentDisplayName} (active)`;
-      this.contextValue = 'agent-active';
+      this.contextValue = isConfigurableAgent(agentId) ? 'agent-active-configurable' : 'agent-active';
       this.iconPath = new vscode.ThemeIcon(
         busy ? 'sync~spin' : 'record',
         new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
       );
       this.description = busy ? 'busy' : 'active';
     } else if (connected) {
-      this.contextValue = 'agent-connected';
+      this.contextValue = isConfigurableAgent(agentId) ? 'agent-connected-configurable' : 'agent-connected';
       this.iconPath = new vscode.ThemeIcon(
         busy ? 'sync~spin' : 'circle-filled',
         new vscode.ThemeColor(busy ? 'notificationsInfoIconForeground' : 'testing.iconPassed'),
       );
       this.description = busy ? 'busy' : 'connected';
     } else {
-      this.contextValue = 'agent-disconnected';
+      this.contextValue = isConfigurableAgent(agentId) ? 'agent-disconnected-configurable' : 'agent-disconnected';
       this.iconPath = new vscode.ThemeIcon('circle-outline');
       this.description = '';
     }

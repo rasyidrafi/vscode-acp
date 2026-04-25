@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { log } from '../utils/Logger';
 import { sendEvent } from '../utils/TelemetryManager';
+import { getSetting } from '../config/Settings';
 
 import type { RequestPermissionRequest, RequestPermissionResponse } from '@agentclientprotocol/sdk';
 
@@ -10,8 +11,7 @@ import type { RequestPermissionRequest, RequestPermissionResponse } from '@agent
  */
 export class PermissionHandler {
   async requestPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
-    const config = vscode.workspace.getConfiguration('acp');
-    const autoApprove = config.get<string>('autoApprovePermissions', 'none');
+    const autoApprove = getSetting<string>('autoApprovePermissions', 'ask');
 
     const title = params.toolCall?.title || 'Permission Request';
     log(`requestPermission: ${title} (autoApprove=${autoApprove})`);

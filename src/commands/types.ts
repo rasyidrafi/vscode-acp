@@ -11,14 +11,15 @@ export interface CommandServices {
 }
 
 export interface AgentCommandTarget {
-  agentName: string;
+  agentName?: string;
+  agentId?: string;
 }
 
 export function getAgentName(target: string | AgentCommandTarget | undefined): string | undefined {
   if (typeof target === 'string') {
     return target;
   }
-  return target?.agentName;
+  return target?.agentName ?? target?.agentId;
 }
 
 export function registerCommand(

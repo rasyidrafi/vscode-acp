@@ -36,7 +36,7 @@ VS Code extension for connecting to ACP-compatible coding agents. It spawns an a
 
 ## Agent Config
 
-Agent definitions come from `acp.agents` in VS Code settings. Launch priority:
+Agent definitions come from `oacp.agents` in VS Code settings. Launch priority:
 
 1. `binaryPath`
 2. `binaryName` resolved from `PATH`
@@ -82,18 +82,18 @@ Extension to webview:
 - Agent and ACP terminal execution now prefer direct process spawning instead of shell execution by default.
 - Webview command execution is allowlisted in `ChatWebviewProvider`.
 - Webview transcript persistence uses `vscode.setState()`; the extension no longer relies on `retainContextWhenHidden` as the primary source of truth.
-- ACP file writes are editor-aware. Open documents are updated through `WorkspaceEdit`, and automatic opening in the editor is controlled by `acp.autoOpenWrittenFilesInEditor`.
-- Protocol traffic is logged through the `ACP Traffic` output channel when `acp.logTraffic` is enabled.
+- ACP file writes are editor-aware. Open documents are updated through `WorkspaceEdit`, and automatic opening in the editor is controlled by `oacp.autoOpenWrittenFilesInEditor`.
+- Protocol traffic is logged through the `ACP Traffic` output channel when `oacp.logTraffic` is enabled.
 - Telemetry initialization is stateful (`enabled` / `disabled` / `degraded`) and respects `vscode.env.isTelemetryEnabled`.
 - Registry fetches return structured results that distinguish fresh data, stale cached data, and failure.
 
 ## Settings
 
-- `acp.agents`: configured agent definitions.
-- `acp.autoApprovePermissions`: permission prompt behavior.
-- `acp.defaultWorkingDirectory`: default session cwd override.
-- `acp.autoOpenWrittenFilesInEditor`: auto-reveal ACP-written files in the editor.
-- `acp.logTraffic`: ACP traffic logging toggle.
+- `oacp.agents`: configured agent definitions.
+- `oacp.autoApprovePermissions`: permission prompt behavior.
+- `oacp.defaultWorkingDirectory`: default session cwd override.
+- `oacp.autoOpenWrittenFilesInEditor`: auto-reveal ACP-written files in the editor.
+- `oacp.logTraffic`: ACP traffic logging toggle.
 
 ## Testing Focus
 

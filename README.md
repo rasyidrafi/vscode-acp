@@ -66,10 +66,11 @@ This is useful for CLIs like Gemini that may already be installed locally, while
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `acp.agents` | *(11 agents)* | Agent configurations. Each key is the agent name, with optional `binaryPath`, `binaryName`, `binaryArgs`, plus fallback `command`, `args`, and `env`. |
-| `acp.autoApprovePermissions` | `ask` | How agent permission requests are handled: `ask` or `allowAll`. |
-| `acp.defaultWorkingDirectory` | `""` | Default working directory for agent sessions. Empty uses current workspace. |
-| `acp.logTraffic` | `true` | Log all ACP protocol traffic to the OACP Traffic output channel. |
+| `oacp.agents` | `{}` | Agent configurations. Each key is the registry id, with optional `binaryPath`, `binaryName`, `binaryArgs`, plus fallback `command`, `args`, and `env`. |
+| `oacp.autoApprovePermissions` | `ask` | How agent permission requests are handled: `ask` or `allowAll`. |
+| `oacp.defaultWorkingDirectory` | `""` | Default working directory for agent sessions. Empty uses current workspace. |
+| `oacp.autoOpenWrittenFilesInEditor` | `false` | Automatically open files in the editor after an ACP file write completes. |
+| `oacp.logTraffic` | `true` | Log all ACP protocol traffic to the OACP Traffic output channel. |
 
 ## Commands
 

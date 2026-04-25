@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { dirname } from 'node:path';
 import { log, logError } from '../utils/Logger';
+import { getSetting } from '../config/Settings';
 
 import type {
   ReadTextFileRequest,
@@ -65,8 +66,7 @@ export class FileSystemHandler {
 
     try {
       const uri = vscode.Uri.file(params.path);
-      const config = vscode.workspace.getConfiguration('acp');
-      const autoOpenInEditor = config.get<boolean>('autoOpenWrittenFilesInEditor', false);
+      const autoOpenInEditor = getSetting<boolean>('autoOpenWrittenFilesInEditor', false);
       const openDoc = vscode.workspace.textDocuments.find(
         doc => doc.uri.fsPath === uri.fsPath
       );

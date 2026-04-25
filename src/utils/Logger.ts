@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getSetting } from '../config/Settings';
 
 let _outputChannel: vscode.OutputChannel | undefined;
 let _trafficChannel: vscode.OutputChannel | undefined;
@@ -35,8 +36,7 @@ export function logError(message: string, error?: unknown): void {
 }
 
 export function logTraffic(direction: 'send' | 'recv', data: unknown): void {
-  const config = vscode.workspace.getConfiguration('acp');
-  if (!config.get<boolean>('logTraffic', true)) {
+  if (!getSetting<boolean>('logTraffic', true)) {
     return;
   }
   const arrow = direction === 'send' ? '>>> CLIENT → AGENT' : '<<< AGENT → CLIENT';

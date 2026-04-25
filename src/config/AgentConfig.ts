@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { logError } from '../utils/Logger';
 import type { RegistryAgent } from './RegistryClient';
+import { getAgentSettings } from './Settings';
 
 /**
  * Configuration for a single ACP agent.
@@ -28,14 +29,17 @@ export interface AgentConfigEntry {
 
 type UnknownRecord = Record<string, unknown>;
 
+const CONFIGURABLE_AGENT_IDS = new Set([
+  'gemini',
+  'github-copilot-cli',
+]);
+
 /**
  * Read agent configurations from VS Code settings.
  * Returns a map of registry id to added-agent config.
  */
 export function getAgentConfigs(): Record<string, AgentConfigEntry> {
-  const config = vscode.workspace.getConfiguration('acp');
-  const agents = config.get<Record<string, unknown>>('agents', {});
-  return sanitizeAgentConfigs(agents);
+  return sanitizeAgentConfigs(getAgentSettings());
 }
 
 /**
@@ -58,6 +62,10 @@ export function getAgentQuickPickItems(): Array<vscode.QuickPickItem & { agentId
       agentId,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+export function isConfigurableAgent(agentId: string): boolean {
+  return CONFIGURABLE_AGENT_IDS.has(agentId);
 }
 
 export function sanitizeAgentConfigs(value: Record<string, unknown>): Record<string, AgentConfigEntry> {
